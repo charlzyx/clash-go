@@ -62,6 +62,20 @@ func DemoModel() *Model {
 		{Name: "Auto", Type: "URLTest", Now: "香港 02", Open: true, ShowDetail: true, Nodes: hk},
 	}
 	m.Providers = []ProxyProvider{{Name: "airport", Type: "http", Used: 12 << 30, Total: 100 << 30, Expire: "2026-12-31"}}
+	m.Rules = []Rule{
+		{Type: "DomainSuffix", Payload: "google.com", Proxy: "Proxy"},
+		{Type: "DomainKeyword", Payload: "ads", Proxy: "REJECT"},
+		{Type: "GeoIP", Payload: "CN", Proxy: "DIRECT"},
+		{Type: "GeoSite", Payload: "category-ads-all", Proxy: "REJECT"},
+		{Type: "IPCIDR", Payload: "10.0.0.0/8", Proxy: "DIRECT"},
+		{Type: "RuleSet", Payload: "reject", Proxy: "REJECT"},
+		{Type: "ProcessName", Payload: "curl", Proxy: "DIRECT"},
+		{Type: "Match", Payload: "", Proxy: "DIRECT"},
+	}
+	m.RuleProviders = []RuleProvider{{
+		Name: "reject", VehicleType: "File", Behavior: "Domain", RuleCount: 12,
+		UpdatedAt: time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC),
+	}}
 	m.Profiles = []ProfileItem{
 		{UID: "p1", Name: "示例订阅", URL: "https://example.com/sub", Type: "remote", Home: "https://example.com", Updated: time.Date(2026, 11, 2, 9, 30, 0, 0, time.UTC), Used: 12 << 30, Total: 100 << 30, Expire: time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC), Option: ProfileOption{UpdateInterval: 1440, AllowAutoUpdate: true, Rules: "x"}},
 		{UID: "p2", Name: "本地配置", Type: "local", Description: "手动维护的规则", Updated: time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC)},

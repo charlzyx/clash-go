@@ -29,6 +29,8 @@ type Hooks struct {
 	// RefreshConnections pulls a core snapshot into Active. now is the
 	// frame clock, used to derive per-connection speeds.
 	RefreshConnections func(now time.Time)
+	RefreshRules       func()
+	UpdateRuleProvider func(name string) error
 }
 
 // Model is the main window: a sidebar and the page it shows.
@@ -47,34 +49,43 @@ type Model struct {
 	IPAuto      bool
 	IPLeft      int
 
-	Groups         []ProxyGroup
-	Providers      []ProxyProvider
-	Chain          ChainState
-	ProxiesLoading bool
-	Profiles       []ProfileItem
-	CurrentProfile string
-	ProfileURL     string
-	ProfileBusy    bool
-	Batch          bool
-	ShowNextUpdate map[string]bool
-	Form           ProfileForm
-	DeleteUID      string
-	Prefs          Prefs
-	Active         []Connection
-	Closed         []Connection
-	ConnUp         int64
-	ConnDown       int64
-	ConnLayout     string
-	ConnOrder      string
-	ConnQuery      string
-	ConnSearch     SearchOpts
-	Notice         string
-	Busy           string
-	DNSAsk         bool
-	ProfileHasDNS  bool
-	ForceTray      bool
-	Dialogs        dialogSet
-	Hooks          Hooks
+	Groups        []ProxyGroup
+	Providers     []ProxyProvider
+	Rules         []Rule
+	RuleProviders []RuleProvider
+	RuleQuery     string
+	RulesList     mygoui.ListState
+	PageVisible   bool
+	// rulesOnPage and rulesPageVisible remember the last frame so a
+	// refresh runs on enter and when the window is shown again.
+	rulesOnPage      bool
+	rulesPageVisible bool
+	Chain            ChainState
+	ProxiesLoading   bool
+	Profiles         []ProfileItem
+	CurrentProfile   string
+	ProfileURL       string
+	ProfileBusy      bool
+	Batch            bool
+	ShowNextUpdate   map[string]bool
+	Form             ProfileForm
+	DeleteUID        string
+	Prefs            Prefs
+	Active           []Connection
+	Closed           []Connection
+	ConnUp           int64
+	ConnDown         int64
+	ConnLayout       string
+	ConnOrder        string
+	ConnQuery        string
+	ConnSearch       SearchOpts
+	Notice           string
+	Busy             string
+	DNSAsk           bool
+	ProfileHasDNS    bool
+	ForceTray        bool
+	Dialogs          dialogSet
+	Hooks            Hooks
 
 	connTab      int
 	connSelected int
@@ -89,19 +100,20 @@ type Model struct {
 }
 
 type dialogSet struct {
-	Provider bool
-	Theme    bool
-	Layout   bool
-	Misc     bool
-	Hotkey   bool
-	Backup   bool
-	Ports    bool
-	Sysproxy bool
-	TUN      bool
-	WebDAV   bool
-	DNS      bool
-	Runtime  bool
-	Lite     bool
+	Provider     bool
+	RuleProvider bool
+	Theme        bool
+	Layout       bool
+	Misc         bool
+	Hotkey       bool
+	Backup       bool
+	Ports        bool
+	Sysproxy     bool
+	TUN          bool
+	WebDAV       bool
+	DNS          bool
+	Runtime      bool
+	Lite         bool
 }
 
 // NewModel returns a window opened on the home page.
@@ -122,6 +134,7 @@ func NewModel(home HomeState) *Model {
 		IPLeft:         30,
 		ShowNextUpdate: map[string]bool{},
 		connSelected:   -1,
+		PageVisible:    true,
 	}
 	m.normalize()
 	return m
@@ -163,6 +176,7 @@ func (m *Model) View(c *mygoui.Context) {
 	}
 	m.normalize()
 	m.flushFilters(c.Now())
+	m.syncRuleRefresh()
 	dark := c.Theme().Dark
 	switch m.Prefs.ThemeMode {
 	case "light":
@@ -194,6 +208,9 @@ func (m *Model) View(c *mygoui.Context) {
 				case "/connections":
 					r.Title("连接")
 					m.connectionsPage(c, pal)
+				case "/rules":
+					r.Title("规则")
+					m.rulesPage(c, pal)
 				default:
 					page, ok := pageByPath(path)
 					if !ok {

@@ -192,6 +192,50 @@ func TestPaletteTokens(t *testing.T) {
 	}
 }
 
+func TestFilterRulesKeepsPayloadAndIndex(t *testing.T) {
+	rules := []Rule{
+		{Type: "Domain", Payload: "A.com", Proxy: "Proxy"},
+		{Type: "DomainSuffix", Payload: "b.com", Proxy: "DIRECT"},
+		{Type: "Domain", Payload: "a.org", Proxy: "REJECT"},
+	}
+	got := FilterRules(rules, "a")
+	if len(got) != 2 || got[0].Line != 1 || got[1].Line != 3 || got[0].Rule.Payload != "A.com" {
+		t.Fatalf("%+v", got)
+	}
+	if rules[0].Payload != "A.com" || rules[2].Payload != "a.org" {
+		t.Fatal("filter mutated the kernel rules")
+	}
+	if !MatchRulePayload("Google", "gOo") || MatchRulePayload("Google", "yahoo") || !MatchRulePayload("", "") {
+		t.Fatal("payload match")
+	}
+	if MatchRulePayload("", "a") {
+		t.Fatal("empty payload matched a query")
+	}
+	if ShowRuleScrollTop(0) || ShowRuleScrollTop(2) || !ShowRuleScrollTop(3) {
+		t.Fatal("scroll threshold")
+	}
+	pal := PaletteFor(false)
+	if RuleProxyColor(pal, "DIRECT") != pal.Text || RuleProxyColor(pal, "REJECT") != pal.Error || RuleProxyColor(pal, "REJECT-DROP") != pal.Error {
+		t.Fatal("policy color")
+	}
+	if RuleProxyColor(pal, "Proxy") == pal.Text || RuleProxyColor(pal, "Proxy") == pal.Error {
+		t.Fatal("named policy color")
+	}
+	now := time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
+	if FormatUpdated(time.Time{}, now) != "-" || FormatUpdated(now.Add(-30*time.Second), now) != "刚刚" {
+		t.Fatal("recent update")
+	}
+	if FormatUpdated(now.Add(-5*time.Minute), now) != "5 分钟前" || FormatUpdated(now.Add(-3*time.Hour), now) != "3 小时前" {
+		t.Fatal("relative update")
+	}
+	if FormatUpdated(now.Add(-10*24*time.Hour), now) != "10 天前" {
+		t.Fatal("day update")
+	}
+	if got := FormatUpdated(now.Add(-40*24*time.Hour), now); got != "2026-09-23" {
+		t.Fatalf("old update %s", got)
+	}
+}
+
 func names(nodes []ProxyNode) []string {
 	out := make([]string, len(nodes))
 	for i, n := range nodes {

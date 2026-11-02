@@ -111,6 +111,7 @@ func (a *App) Prepare() error {
 	}
 	a.started = time.Now()
 	a.loadGroups()
+	a.loadRules()
 	a.bindHooks()
 	a.refreshHome()
 	return nil
@@ -328,6 +329,52 @@ func (a *App) bindHooks() {
 		CloseAllConnections: a.closeAllConnections,
 		CloseConnection:     a.closeConnection,
 		RefreshConnections:  a.refreshConnections,
+		RefreshRules:        a.loadRules,
+		UpdateRuleProvider:  a.updateRuleProvider,
+	}
+}
+
+// loadRules copies the kernel rule list and rule providers into the window.
+// A stopped core leaves whatever the page already shows.
+func (a *App) loadRules() {
+	if a.model == nil || a.core == nil || !a.core.Status().Running {
+		return
+	}
+	raw := a.core.Rules()
+	rules := make([]ui.Rule, 0, len(raw))
+	for _, rule := range raw {
+		rules = append(rules, ui.Rule{Type: rule.Type, Payload: rule.Payload, Proxy: rule.Proxy})
+	}
+	provs := a.core.RuleProviders()
+	out := make([]ui.RuleProvider, 0, len(provs))
+	for _, p := range provs {
+		out = append(out, ui.RuleProvider{
+			Name: p.Name, VehicleType: p.VehicleType, Behavior: p.Behavior,
+			RuleCount: p.RuleCount, UpdatedAt: p.UpdatedAt,
+		})
+	}
+	a.model.Rules = rules
+	a.model.RuleProviders = out
+	a.model.Home.Rules = len(rules)
+	if a.win != nil {
+		a.win.Invalidate()
+	}
+}
+
+func (a *App) updateRuleProvider(name string) error {
+	if a.core == nil {
+		return nil
+	}
+	return a.core.UpdateRuleProvider(name)
+}
+
+func (a *App) setPageVisible(on bool) {
+	if a.model == nil || a.model.PageVisible == on {
+		return
+	}
+	a.model.PageVisible = on
+	if a.win != nil {
+		a.win.Invalidate()
 	}
 }
 
@@ -415,6 +462,7 @@ func (a *App) ImportURL(raw string) error {
 		}
 	}
 	a.loadGroups()
+	a.loadRules()
 	return nil
 }
 
@@ -459,6 +507,7 @@ func (a *App) restartCore() error {
 	}
 	a.started = time.Now()
 	a.loadGroups()
+	a.loadRules()
 	a.refreshHome()
 	return nil
 }
