@@ -27,6 +27,7 @@ func (m *Model) overlay(c *mygoui.Context, pal Palette) {
 	m.dnsConfirm(c, pal)
 	m.connColumnDialog(c, pal)
 	m.ruleProviderDialog(c, pal)
+	m.testFormDialog(c, pal)
 }
 
 func (m *Model) homeSettingsDialog(c *mygoui.Context, pal Palette) {

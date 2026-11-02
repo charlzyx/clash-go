@@ -102,20 +102,23 @@ type ChainState struct {
 	Nodes      []ProxyNode
 }
 
-// SiteTest is one home website test.
+// SiteTest is one website test. Delay is -1 untested, -2 in progress, or milliseconds.
 type SiteTest struct {
+	UID    string
 	Name   string
 	URL    string
+	Icon   string
 	Status string // "", testing, ok, fail
+	Delay  int
 }
 
 // DefaultSites is the first-run Apple/GitHub/Google/YouTube list.
 func DefaultSites() []SiteTest {
 	return []SiteTest{
-		{Name: "Apple", URL: "https://www.apple.com"},
-		{Name: "GitHub", URL: "https://www.github.com"},
-		{Name: "Google", URL: "https://www.google.com"},
-		{Name: "YouTube", URL: "https://www.youtube.com"},
+		{UID: "apple", Name: "Apple", URL: "https://www.apple.com", Delay: -1},
+		{UID: "github", Name: "GitHub", URL: "https://www.github.com", Delay: -1},
+		{UID: "google", Name: "Google", URL: "https://www.google.com", Delay: -1},
+		{UID: "youtube", Name: "YouTube", URL: "https://www.youtube.com", Delay: -1},
 	}
 }
 
@@ -135,6 +138,13 @@ type IPView struct {
 	Lat      string
 }
 
+// ProfileSelected is one saved group→node choice on a subscription.
+// Verge stores these as selected: [{name, now}], one entry per group.
+type ProfileSelected struct {
+	Name string
+	Now  string
+}
+
 // ProfileItem is one subscription card.
 type ProfileItem struct {
 	UID         string
@@ -149,6 +159,7 @@ type ProfileItem struct {
 	Expire      time.Time
 	Checked     bool
 	Option      ProfileOption
+	Selected    []ProfileSelected
 }
 
 // ProfileOption is the extra menu and the remote form.

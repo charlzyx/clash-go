@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/charlzyx/clash-go/internal/appconfig"
@@ -17,6 +18,7 @@ import (
 	"github.com/charlzyx/clash-go/internal/conn"
 	"github.com/charlzyx/clash-go/internal/core"
 	"github.com/charlzyx/clash-go/internal/profile"
+	"github.com/charlzyx/clash-go/internal/sitetest"
 	"github.com/charlzyx/clash-go/internal/sysproxy"
 	"github.com/charlzyx/clash-go/internal/tun"
 	"github.com/charlzyx/clash-go/internal/ui"
@@ -48,6 +50,7 @@ type App struct {
 	model    *ui.Model
 	dir      string
 	profiles *profile.Store
+	sites    *sitetest.Store
 	started  time.Time
 
 	win  *mygo.Window
@@ -69,7 +72,7 @@ func New(opt Options) *App {
 		opt.Proxy = sysproxy.Platform()
 	}
 	if opt.TUN == nil {
-		opt.TUN = tun.NewMemory()
+		opt.TUN = tun.Platform()
 	}
 	if opt.Core == nil {
 		opt.Core = core.New()
@@ -103,6 +106,7 @@ func (a *App) Prepare() error {
 	a.model = ui.NewModel(ui.HomeState{ConfigDir: dir, Version: core.Version()})
 	a.applySettings()
 	a.loadProfiles()
+	a.loadSites()
 	if err := a.installCurrentProfile(); err != nil {
 		a.model.Notice = err.Error()
 	}
@@ -142,6 +146,9 @@ func (a *App) applySettings() {
 	a.model.Home.SystemProxy = prefs.SystemProxy
 	a.model.Home.TUN = prefs.TUN
 	a.model.Home.AutoLaunch = prefs.AutoLaunch
+	if a.tun != nil {
+		a.model.Home.TUNAvailable = a.tun.Available()
+	}
 }
 
 func (a *App) loadProfiles() {
@@ -156,7 +163,7 @@ func (a *App) loadProfiles() {
 	a.model.Profiles = nil
 	a.model.CurrentProfile = file.Current
 	for _, it := range file.Items {
-		a.model.Profiles = append(a.model.Profiles, ui.ProfileItem{
+		item := ui.ProfileItem{
 			UID: it.UID, Name: it.Name, Description: it.Description, URL: it.URL, Type: it.Type,
 			Home: it.Home, Updated: it.Updated, Used: it.Used, Total: it.Total, Expire: it.Expire,
 			Option: ui.ProfileOption{
@@ -166,11 +173,58 @@ func (a *App) loadProfiles() {
 				Groups: it.Option.Groups, Merge: it.Option.Merge, Script: it.Option.Script,
 				UserAgent: it.Option.UserAgent, TimeoutSeconds: it.Option.TimeoutSeconds,
 			},
-		})
+		}
+		for _, sel := range it.Selected {
+			item.Selected = append(item.Selected, ui.ProfileSelected{Name: sel.Name, Now: sel.Now})
+		}
+		a.model.Profiles = append(a.model.Profiles, item)
 	}
 	if cur := a.model.CurrentItem(); cur != nil {
 		a.model.Home.Profile = &ui.HomeProfile{Name: cur.Name, URL: cur.URL, Home: cur.Home, Updated: cur.Updated, Used: cur.Used, Total: cur.Total, Expire: cur.Expire}
 	}
+}
+
+// loadSites replaces the default list when tests.json exists.
+// A missing file keeps DefaultSites. Delay is not stored.
+func (a *App) loadSites() {
+	if a == nil || a.model == nil || a.dir == "" {
+		return
+	}
+	if a.sites == nil {
+		a.sites = sitetest.NewStore(a.dir)
+	}
+	items, err := a.sites.Load()
+	if err != nil {
+		a.model.Notice = err.Error()
+		return
+	}
+	if items == nil {
+		return
+	}
+	a.model.Sites = nil
+	for _, it := range items {
+		a.model.Sites = append(a.model.Sites, ui.SiteTest{
+			UID: it.UID, Name: it.Name, URL: it.URL, Icon: it.Icon, Delay: -1,
+		})
+	}
+}
+
+func (a *App) saveSites(list []ui.SiteTest) error {
+	if a == nil || a.dir == "" {
+		return nil
+	}
+	if a.sites == nil {
+		a.sites = sitetest.NewStore(a.dir)
+	}
+	items := make([]sitetest.Item, 0, len(list))
+	for _, s := range list {
+		items = append(items, sitetest.Item{UID: s.UID, Name: s.Name, URL: s.URL, Icon: s.Icon})
+	}
+	return a.sites.Save(items)
+}
+
+func (a *App) probeSite(raw string) (int, error) {
+	return sitetest.ProbeURL(raw, nil)
 }
 
 // SetSystemProxy asks the proxy controller to enable or disable the
@@ -193,20 +247,65 @@ func (a *App) SetSystemProxy(on bool) error {
 	return nil
 }
 
-// SetTUN asks the TUN controller to enable or disable TUN and stores it.
+// SetTUN asks the TUN controller to enable or disable TUN, rewrites the
+// mihomo profile, and stores the switch. Missing permission does not write
+// tun.enable or the saved switch. CI never reloads a running kernel into TUN.
 func (a *App) SetTUN(on bool) error {
-	if err := a.tun.Set(on); err != nil {
+	if a.tun != nil && on && !a.tun.Available() {
+		if a.model != nil {
+			a.model.Home.TUN = false
+			a.model.Home.TUNAvailable = false
+			a.model.Notice = tun.ErrNeedService.Error()
+		}
+		return tun.ErrNeedService
+	}
+	if err := a.applyTUNFile(on); err != nil {
 		return err
+	}
+	if a.tun != nil {
+		if err := a.tun.Set(on); err != nil {
+			_ = a.applyTUNFile(!on)
+			return err
+		}
 	}
 	prev := a.settings.TUN
 	a.settings.TUN = on
-	if err := a.store.Save(a.settings); err != nil {
-		a.settings.TUN = prev
-		_ = a.tun.Set(prev)
-		return err
+	if a.store != nil {
+		if err := a.store.Save(a.settings); err != nil {
+			a.settings.TUN = prev
+			if a.tun != nil {
+				_ = a.tun.Set(prev)
+			}
+			_ = a.applyTUNFile(prev)
+			return err
+		}
 	}
 	a.refreshHome()
 	return nil
+}
+
+func (a *App) applyTUNFile(on bool) error {
+	if a == nil || a.dir == "" {
+		return nil
+	}
+	path := filepath.Join(a.dir, "config.yaml")
+	if _, err := os.Stat(path); err != nil {
+		return nil
+	}
+	if on && tunCIBlocked() && a.core != nil && a.core.Status().Running {
+		return tun.ErrNeedService
+	}
+	if err := tun.ApplyFile(path, on); err != nil {
+		return err
+	}
+	if a.core != nil && a.core.Status().Running {
+		return a.core.Reload()
+	}
+	return nil
+}
+
+func tunCIBlocked() bool {
+	return os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != ""
 }
 
 // Home is the snapshot the window shows.
@@ -237,6 +336,9 @@ func (a *App) refreshHome() {
 	h.ConfigDir = a.dir
 	h.SystemProxy = a.settings.SystemProxy
 	h.TUN = a.settings.TUN
+	if a.tun != nil {
+		h.TUNAvailable = a.tun.Available()
+	}
 	if st.Running && !a.started.IsZero() {
 		h.Uptime = time.Since(a.started)
 	}
@@ -304,18 +406,164 @@ func (a *App) loadGroups() {
 		}
 		groups = append(groups, gg)
 	}
-	if len(groups) > 0 {
-		a.model.Groups = groups
-		a.model.Home.Node.Group = groups[0].Name
-		a.model.Home.Node.Groups = nil
-		for _, g := range groups {
-			a.model.Home.Node.Groups = append(a.model.Home.Node.Groups, g.Name)
-			if g.Now != "" && a.model.Home.Node.Name == "" {
-				a.model.Home.Node.Name = g.Now
-				a.model.Home.Node.Group = g.Name
+	a.model.Groups = groups
+	names := make([]string, 0, len(groups))
+	for _, g := range groups {
+		names = append(names, g.Name)
+	}
+	a.model.Home.Node = ui.CurrentNode{Groups: names}
+	a.applySavedSelection()
+}
+
+// applySavedSelection is Verge's activateSelected. The current profile's
+// selected list is one {name, now} per group. Each entry is written onto
+// the model and, when the kernel is running, into that selector. A saved
+// node that the group does not have is skipped and the group keeps its
+// default (the YAML now, otherwise the first proxy, otherwise the kernel's
+// current Now).
+func (a *App) applySavedSelection() {
+	if a.model == nil {
+		return
+	}
+	saved := map[string]string{}
+	if cur := a.model.CurrentItem(); cur != nil {
+		for _, sel := range cur.Selected {
+			if sel.Name == "" || sel.Now == "" {
+				continue
+			}
+			if _, ok := saved[sel.Name]; !ok {
+				saved[sel.Name] = sel.Now
 			}
 		}
 	}
+	running := a.core != nil && a.core.Status().Running
+	for i := range a.model.Groups {
+		g := &a.model.Groups[i]
+		want, ok := saved[g.Name]
+		if ok && groupHasNode(g, want) && selectorGroup(g.Type) {
+			if running {
+				if err := a.core.Select(g.Name, want); err != nil {
+					g.Now = a.fallbackNow(g)
+					continue
+				}
+			}
+			g.Now = want
+			continue
+		}
+		if g.Now == "" || !groupHasNode(g, g.Now) {
+			g.Now = firstNode(g)
+		}
+		if running && selectorGroup(g.Type) {
+			now, err := a.core.Selected(g.Name)
+			if err == nil && groupHasNode(g, now) {
+				g.Now = now
+			} else if g.Now != "" {
+				// The kernel still has another profile's node. Put it back
+				// on this profile's default so the UI and Now() agree.
+				if selErr := a.core.Select(g.Name, g.Now); selErr == nil {
+					if now, err = a.core.Selected(g.Name); err == nil && groupHasNode(g, now) {
+						g.Now = now
+					}
+				}
+			}
+		}
+	}
+	a.syncHomeNode()
+}
+
+func (a *App) fallbackNow(g *ui.ProxyGroup) string {
+	if g == nil {
+		return ""
+	}
+	if a.core != nil && a.core.Status().Running && selectorGroup(g.Type) {
+		if now, err := a.core.Selected(g.Name); err == nil && groupHasNode(g, now) {
+			return now
+		}
+	}
+	if groupHasNode(g, g.Now) {
+		return g.Now
+	}
+	return firstNode(g)
+}
+
+func (a *App) syncHomeNode() {
+	if a.model == nil {
+		return
+	}
+	h := a.model.Home.Node
+	h.Name, h.Type, h.Group = "", "", ""
+	h.Delay = 0
+	for _, g := range a.model.Groups {
+		if !selectorGroup(g.Type) || g.Now == "" {
+			continue
+		}
+		h.Name = g.Now
+		h.Group = g.Name
+		for _, n := range g.Nodes {
+			if n.Name == g.Now {
+				h.Type = n.Type
+				h.Delay = n.Delay
+				break
+			}
+		}
+		break
+	}
+	if h.Group == "" && len(a.model.Groups) > 0 {
+		h.Group = a.model.Groups[0].Name
+	}
+	a.model.Home.Node = h
+}
+
+func groupHasNode(g *ui.ProxyGroup, name string) bool {
+	if g == nil || name == "" {
+		return false
+	}
+	for _, n := range g.Nodes {
+		if n.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func firstNode(g *ui.ProxyGroup) string {
+	if g == nil || len(g.Nodes) == 0 {
+		return ""
+	}
+	return g.Nodes[0].Name
+}
+
+func selectorGroup(kind string) bool {
+	switch strings.ToLower(kind) {
+	case "selector", "select":
+		return true
+	default:
+		return false
+	}
+}
+
+// UseProfile makes uid the current subscription, reloads its config into
+// the kernel, and restores that profile's selected nodes. This is the
+// profile-switch half of activateSelected. Startup does the same work
+// from Prepare via loadProfiles and loadGroups.
+func (a *App) UseProfile(uid string) error {
+	if a == nil || a.profiles == nil {
+		return nil
+	}
+	if err := a.profiles.SetCurrent(uid); err != nil {
+		return err
+	}
+	a.loadProfiles()
+	if err := a.installCurrentProfile(); err != nil {
+		return err
+	}
+	if a.core != nil && a.core.Status().Running {
+		if err := a.core.Reload(); err != nil {
+			return err
+		}
+	}
+	a.loadGroups()
+	return nil
 }
 
 func (a *App) bindHooks() {
@@ -327,6 +575,7 @@ func (a *App) bindHooks() {
 		SetTUN:              a.SetTUN,
 		SetMode:             a.SetMode,
 		SelectProxy:         a.SelectProxy,
+		UseProfile:          a.UseProfile,
 		CloseConnection:     a.closeConnection,
 		CloseAllConnections: a.closeAllConnections,
 		ClearClosed:         func() { a.connTrack.ClearClosed() },
@@ -344,6 +593,8 @@ func (a *App) bindHooks() {
 		},
 		ImportURL:   a.ImportURL,
 		SavePrefs:   a.savePrefs,
+		ProbeSite:   a.probeSite,
+		SaveSites:   a.saveSites,
 		OpenDir:     a.openDir,
 		RestartCore: a.restartCore,
 		Copy:        writeClipboard,

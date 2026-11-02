@@ -108,6 +108,9 @@ func fillM3(m *Model) {
 			{Name: "local", Vehicle: "File", Behavior: "classical", Count: 4, UpdatedAt: "1 天前"},
 		},
 	}
+	if len(m.Sites) > 2 {
+		m.Sites[2].Delay = 128
+	}
 	m.Logs = LogView{
 		Level: "all",
 		Lines: []clashlog.Line{

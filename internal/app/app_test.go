@@ -10,8 +10,10 @@ import (
 	"github.com/charlzyx/clash-go/internal/appconfig"
 	"github.com/charlzyx/clash-go/internal/appdir"
 	"github.com/charlzyx/clash-go/internal/core"
+	"github.com/charlzyx/clash-go/internal/sitetest"
 	"github.com/charlzyx/clash-go/internal/sysproxy"
 	"github.com/charlzyx/clash-go/internal/tun"
+	"github.com/charlzyx/clash-go/internal/ui"
 )
 
 type fakeProxy struct {
@@ -30,11 +32,14 @@ func (f *fakeProxy) Set(s sysproxy.Settings) error {
 }
 
 type fakeTUN struct {
-	on     bool
-	setErr error
+	on          bool
+	setErr      error
+	unavailable bool
 }
 
 func (f *fakeTUN) Current() (bool, error) { return f.on, nil }
+
+func (f *fakeTUN) Available() bool { return f == nil || !f.unavailable }
 
 func (f *fakeTUN) Set(on bool) error {
 	if f.setErr != nil {
@@ -128,5 +133,105 @@ func TestSetTUNRollsBack(t *testing.T) {
 	}
 	if got.TUN {
 		t.Fatal("store kept TUN")
+	}
+}
+
+func TestSetTUNWritesVergeDefaultsWithoutDevice(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(path, []byte("mode: rule\nmixed-port: 7897\nipv6: false\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mem := tun.NewMemory()
+	a := New(Options{
+		Dirs:  appdir.Fixed(dir),
+		Store: appconfig.NewMemory(dir),
+		Proxy: sysproxy.NewMemory(),
+		TUN:   mem,
+		Core:  core.New(),
+	})
+	a.dir = dir
+	if err := a.SetTUN(true); err != nil {
+		t.Fatal(err)
+	}
+	on, err := mem.Current()
+	if err != nil || !on {
+		t.Fatalf("memory tun %v %v", on, err)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(body)
+	for _, want := range []string{"enable: true", "mips", "auto-route: true", "any:53", "fake-ip", "198.18.0.1/16"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("missing %q\n%s", want, text)
+		}
+	}
+	if a.core.Status().Running {
+		t.Fatal("writing tun config started the kernel")
+	}
+}
+
+func TestSetTUNRefusesWithoutHelper(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	const before = "mode: rule\ntun:\n  enable: false\n"
+	if err := os.WriteFile(path, []byte(before), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	blocked := &fakeTUN{unavailable: true}
+	a := New(Options{
+		Dirs:  appdir.Fixed(dir),
+		Store: appconfig.NewMemory(dir),
+		Proxy: sysproxy.NewMemory(),
+		TUN:   blocked,
+		Core:  core.New(),
+	})
+	a.dir = dir
+	a.model = ui.NewModel(ui.HomeState{})
+	if err := a.SetTUN(true); err == nil || err.Error() != tun.ErrNeedService.Error() {
+		t.Fatalf("SetTUN %v", err)
+	}
+	if blocked.on || a.model.Home.TUN || a.model.Notice != tun.ErrNeedService.Error() {
+		t.Fatalf("on %v tun %v notice %q", blocked.on, a.model.Home.TUN, a.model.Notice)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != before || strings.Contains(string(body), "enable: true") {
+		t.Fatalf("config changed:\n%s", body)
+	}
+	got, err := a.store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.TUN {
+		t.Fatal("settings stored TUN")
+	}
+}
+
+func TestSitesPersistAcrossStoreReload(t *testing.T) {
+	dir := t.TempDir()
+	if err := sitetest.NewStore(dir).Save([]sitetest.Item{
+		{UID: "g", Name: "Google", URL: "https://www.google.com", Icon: "G"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	a := newProfileHarness(dir)
+	a.loadSites()
+	if len(a.Model().Sites) != 1 || a.Model().Sites[0].Name != "Google" || a.Model().Sites[0].Delay != -1 {
+		t.Fatalf("loaded %+v", a.Model().Sites)
+	}
+	a.Model().Sites = append(a.Model().Sites, ui.SiteTest{UID: "e", Name: "Example", URL: "https://example.com", Icon: "E", Delay: 12})
+	if err := a.saveSites(a.Model().Sites); err != nil {
+		t.Fatal(err)
+	}
+	again := newProfileHarness(dir)
+	again.loadSites()
+	got := again.Model().Sites
+	if len(got) != 2 || got[1].Name != "Example" || got[1].Delay != -1 || got[1].Icon != "E" {
+		t.Fatalf("reloaded %+v", got)
 	}
 }

@@ -104,6 +104,29 @@ func (s *Store) Save(f File) error {
 	return os.WriteFile(s.path(), b, 0o644)
 }
 
+// SetCurrent marks uid as the active subscription.
+func (s *Store) SetCurrent(uid string) error {
+	if uid == "" {
+		return errors.New("profile is empty")
+	}
+	f, err := s.Load()
+	if err != nil {
+		return err
+	}
+	found := false
+	for _, it := range f.Items {
+		if it.UID == uid {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return errors.New("profile " + uid + " not found")
+	}
+	f.Current = uid
+	return s.Save(f)
+}
+
 // RecordSelected stores group→node on the subscription uid. A second write
 // for the same group replaces now instead of appending.
 func (s *Store) RecordSelected(uid, group, node string) error {

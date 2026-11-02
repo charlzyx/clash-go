@@ -243,9 +243,33 @@ func (m *Model) profileItem(c *mygoui.Context, pal Palette, i int) {
 		})
 	})
 	if card.Clicked() && !m.Batch {
-		m.CurrentProfile = p.UID
-		m.Home.Profile = homeFrom(*p)
+		m.activateProfile(p.UID)
+	}
+}
+
+// activateProfile switches the current subscription. When the app hook is
+// set, that path reloads the kernel and restores this profile's selected
+// nodes. A nil hook only updates the model, which is what headless pages do.
+func (m *Model) activateProfile(uid string) {
+	if uid == "" {
+		return
+	}
+	if m.Hooks.UseProfile != nil {
+		if err := m.Hooks.UseProfile(uid); err != nil {
+			m.Notice = err.Error()
+			return
+		}
 		m.Notice = "订阅已切换"
+		return
+	}
+	for _, p := range m.Profiles {
+		if p.UID != uid {
+			continue
+		}
+		m.CurrentProfile = uid
+		m.Home.Profile = homeFrom(p)
+		m.Notice = "订阅已切换"
+		return
 	}
 }
 
@@ -257,9 +281,7 @@ func (m *Model) profileMenu(menu *mygoui.Menu, p *ProfileItem) {
 		}
 	}
 	if menu.Item("使用").Chosen() {
-		m.CurrentProfile = p.UID
-		m.Home.Profile = homeFrom(*p)
-		m.Notice = "订阅已切换"
+		m.activateProfile(p.UID)
 	}
 	if remote {
 		if menu.Item("分享二维码").Chosen() {
