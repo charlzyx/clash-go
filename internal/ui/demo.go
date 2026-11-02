@@ -71,6 +71,54 @@ func DemoModel() *Model {
 	return m
 }
 
+// CollapseSidebar is the collapsed navigation shared by the
+// sidebar-collapsed screenshots and by the 36/56 brand checks.
+// The rail is 72px, the logo area is 56×56, the mark stays 36×36,
+// and the wordmark is hidden. A nil model starts from DemoModel.
+func CollapseSidebar(m *Model) *Model {
+	if m == nil {
+		m = DemoModel()
+	}
+	m.Prefs.CollapseNav = true
+	return m
+}
+
+// CollapsedBrandMeasure is what NewCollapsedTester shows for the brand slot.
+type CollapsedBrandMeasure struct {
+	SidebarW float32
+	SlotW    float32
+	SlotH    float32
+	MarkW    float32
+	MarkH    float32
+	Wordmark bool
+}
+
+// MeasureCollapsedBrand reads the 72px rail, the 56×56 logo area, and the
+// 36×36 mark from a frame made by NewCollapsedTester. Wordmark is true when
+// 「Clash Go」 is still on screen.
+func MeasureCollapsedBrand(tt *mygoui.Tester) (CollapsedBrandMeasure, bool) {
+	var out CollapsedBrandMeasure
+	if tt == nil {
+		return out, false
+	}
+	side, okSide := tt.Find("sidebar")
+	slot, okSlot := tt.Find("logo-slot")
+	mark, okMark := tt.Find("mygo")
+	if !okSide || !okSlot || !okMark {
+		return out, false
+	}
+	out.SidebarW = side.W
+	out.SlotW, out.SlotH = slot.W, slot.H
+	out.MarkW, out.MarkH = mark.W, mark.H
+	out.Wordmark = tt.HasText("Clash Go")
+	return out, true
+}
+
+// NewCollapsedTester draws CollapseSidebar with ui.NewTester. No window is opened.
+func NewCollapsedTester(m *Model, dark bool) *mygoui.Tester {
+	return renderModel(CollapseSidebar(m), WindowWidth, WindowHeight, dark)
+}
+
 // renderModel draws the model once the way the screenshot test does.
 func renderModel(m *Model, width, height int, dark bool) *mygoui.Tester {
 	if width <= 0 {

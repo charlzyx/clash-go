@@ -80,34 +80,34 @@ func TestSidebarBrandMark(t *testing.T) {
 	}
 	assertCyanMark(t, tt.Image(), mark)
 
-	m.Prefs.CollapseNav = true
-	ct := renderModel(m, WindowWidth, WindowHeight, false)
-	if ct.HasText("Clash Go") {
-		t.Fatal("collapsed sidebar still shows the wordmark")
-	}
+	ct := NewCollapsedTester(m, false)
+	requireCollapsedBrand(t, ct)
+	requireCollapsedBrand(t, NewCollapsedTester(nil, false))
 	collapsed, ok := ct.Find("mygo")
 	if !ok {
 		t.Fatal("collapsed sidebar lost the mark")
 	}
-	if collapsed.W < 34 || collapsed.W > 38 {
-		t.Fatalf("collapsed icon size %v", collapsed)
-	}
-	center := collapsed.X + collapsed.W/2
-	if center < sidebarCollapsedWidth/2-4 || center > sidebarCollapsedWidth/2+4 {
-		t.Fatalf("collapsed icon center %v, want the middle of the 72px sidebar", center)
-	}
-	if collapsed.Y < 0 || collapsed.Y+collapsed.H > logoCollapsedBox+1 {
-		t.Fatalf("collapsed icon outside the 56px logo area: %v", collapsed)
-	}
-	side, ok := ct.Find("sidebar")
-	if !ok || side.W < 70 || side.W > 74 {
-		t.Fatalf("collapsed sidebar %v, want width 72", side)
-	}
-	slot, ok := ct.Find("logo-slot")
-	if !ok || slot.W < 54 || slot.W > 58 || slot.H < 54 || slot.H > 58 {
-		t.Fatalf("logo slot %v, want 56×56", slot)
-	}
 	assertCyanMark(t, ct.Image(), collapsed)
+}
+
+func requireCollapsedBrand(t *testing.T, tt *mygoui.Tester) {
+	t.Helper()
+	got, ok := MeasureCollapsedBrand(tt)
+	if !ok {
+		t.Fatal("collapsed frame is missing the sidebar, the 56px logo slot, or the mark")
+	}
+	if got.Wordmark {
+		t.Fatal("collapsed sidebar still shows Clash Go")
+	}
+	if got.SidebarW < 70 || got.SidebarW > 74 {
+		t.Fatalf("sidebar width %v, want 72", got.SidebarW)
+	}
+	if got.SlotW < 54 || got.SlotW > 58 || got.SlotH < 54 || got.SlotH > 58 {
+		t.Fatalf("logo slot %v×%v, want 56×56", got.SlotW, got.SlotH)
+	}
+	if got.MarkW < 34 || got.MarkW > 38 || got.MarkH < 34 || got.MarkH > 38 {
+		t.Fatalf("mark %v×%v, want 36×36", got.MarkW, got.MarkH)
+	}
 }
 
 func assertCyanMark(t *testing.T, img image.Image, mark mygoui.Rect) {
@@ -611,22 +611,8 @@ func TestPageScreenshots(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		collapsed := DemoModel()
-		collapsed.Prefs.CollapseNav = true
-		if theme.dark {
-			collapsed.Prefs.ThemeMode = "dark"
-		} else {
-			collapsed.Prefs.ThemeMode = "light"
-		}
-		ct := renderModel(collapsed, WindowWidth, WindowHeight, theme.dark)
-		side, ok := ct.Find("sidebar")
-		slot, slotOK := ct.Find("logo-slot")
-		if !ok || !slotOK || side.W < 70 || side.W > 74 || slot.W < 54 || slot.H < 54 {
-			t.Fatalf("collapsed frame sidebar %v logo %v", side, slot)
-		}
-		if ct.HasText("Clash Go") {
-			t.Fatal("collapsed screenshot still shows the wordmark")
-		}
+		ct := NewCollapsedTester(DemoModel(), theme.dark)
+		requireCollapsedBrand(t, ct)
 		if dir == "" {
 			continue
 		}
