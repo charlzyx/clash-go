@@ -40,14 +40,14 @@ func TestNavigatePages(t *testing.T) {
 		if p.ID == "home" {
 			continue
 		}
-		if err := tt.Click(p.Title); err != nil {
+		if err := tt.Click(p.Nav); err != nil {
 			t.Fatal(err)
 		}
 		if m.Router.Path() != p.Path {
-			t.Fatalf("path %q after clicking %s, want %s", m.Router.Path(), p.Title, p.Path)
+			t.Fatalf("path %q after clicking %s, want %s", m.Router.Path(), p.Nav, p.Path)
 		}
-		if !tt.HasText(p.Body) {
-			t.Fatalf("page %s missing %q\ntexts: %q", p.ID, p.Body, tt.Texts())
+		if !tt.HasText(p.Title) || !tt.HasText(p.Body) {
+			t.Fatalf("page %s missing %q or %q\ntexts: %q", p.ID, p.Title, p.Body, tt.Texts())
 		}
 	}
 	if err := tt.Click("首页"); err != nil {

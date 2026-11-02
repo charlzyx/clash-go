@@ -24,6 +24,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: test "$GITHUB_REF_NAME" = "v$(jq -r .version mygo.json)"
 
+      # mygo.json "main" is ./cmd/clash-go. The repository root has no Go files,
+      # so a default `go list .` fails.
       - name: Build app and disk image
         run: go tool mygo build -platform darwin/arm64
 

@@ -3,9 +3,11 @@ package ui
 import mygoui "github.com/egoist/mygo/ui"
 
 // Page is one entry in the sidebar. ID is the screenshot file prefix.
+// Nav is the sidebar label. Title is the heading on the page.
 type Page struct {
 	ID    string
 	Path  string
+	Nav   string
 	Title string
 	Body  string
 }
@@ -13,14 +15,14 @@ type Page struct {
 // Pages is the sidebar, in Clash Verge Rev order.
 func Pages() []Page {
 	return []Page{
-		{ID: "home", Path: "/home", Title: "首页"},
-		{ID: "proxies", Path: "/proxies", Title: "代理", Body: "节点和策略组会显示在这里。"},
-		{ID: "subscriptions", Path: "/subscriptions", Title: "订阅", Body: "订阅配置会显示在这里。"},
-		{ID: "connections", Path: "/connections", Title: "连接", Body: "活动连接会显示在这里。"},
-		{ID: "rules", Path: "/rules", Title: "规则", Body: "分流规则会显示在这里。"},
-		{ID: "logs", Path: "/logs", Title: "日志", Body: "内核日志会显示在这里。"},
-		{ID: "test", Path: "/test", Title: "测试", Body: "连通性测试会显示在这里。"},
-		{ID: "settings", Path: "/settings", Title: "设置", Body: "应用设置会显示在这里。"},
+		{ID: "home", Path: "/home", Nav: "首页", Title: "首页"},
+		{ID: "proxies", Path: "/proxies", Nav: "代理", Title: "代理组", Body: "节点和策略组会显示在这里。"},
+		{ID: "subscriptions", Path: "/profile", Nav: "订阅", Title: "订阅", Body: "订阅配置会显示在这里。"},
+		{ID: "connections", Path: "/connections", Nav: "连接", Title: "连接", Body: "活动连接会显示在这里。"},
+		{ID: "rules", Path: "/rules", Nav: "规则", Title: "规则", Body: "分流规则会显示在这里。"},
+		{ID: "logs", Path: "/logs", Nav: "日志", Title: "日志", Body: "内核日志会显示在这里。"},
+		{ID: "test", Path: "/test", Nav: "测试", Title: "测试", Body: "连通性测试会显示在这里。"},
+		{ID: "settings", Path: "/settings", Nav: "设置", Title: "设置", Body: "应用设置会显示在这里。"},
 	}
 }
 
@@ -88,7 +90,7 @@ func (m *Model) sidebar(c *mygoui.Context) {
 		})
 		if mygoui.Sidebar(c, &page, func() {
 			for _, item := range Pages() {
-				mygoui.SidebarItem(c, item.Path, nil, item.Title)
+				mygoui.SidebarItem(c, item.Path, nil, item.Nav)
 			}
 		}).Grow(1).Changed() {
 			m.Router.Push(page)
@@ -116,7 +118,7 @@ func pageByPath(path string) (Page, bool) {
 func HomePage(c *mygoui.Context, s HomeState) {
 	t := c.Theme()
 	mygoui.Column(c).Gap(16).Children(func() {
-		mygoui.Text(c, "首页").FontSize(28).Bold()
+		mygoui.Text(c, "首页").FontSize(pageTitleSize).Bold()
 		mygoui.Text(c, "内核").FontSize(13).TextColor(t.TextMuted)
 		mygoui.Row(c).Gap(12).AlignItems(mygoui.Stretch).Children(func() {
 			statCard(c, "内核版本", display(s.Version))
@@ -141,7 +143,7 @@ func HomePage(c *mygoui.Context, s HomeState) {
 func PlaceholderPage(c *mygoui.Context, title, body string) {
 	t := c.Theme()
 	mygoui.Column(c).Gap(8).Children(func() {
-		mygoui.Text(c, title).FontSize(28).Bold()
+		mygoui.Text(c, title).FontSize(pageTitleSize).Bold()
 		mygoui.Text(c, body).TextColor(t.TextMuted)
 	})
 }

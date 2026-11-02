@@ -19,6 +19,8 @@ go tool mygo dev
 go tool mygo build -platform darwin/arm64
 ```
 
+`mygo.json` 的 `main` 是 `./cmd/clash-go`。仓库根目录没有 Go 文件，不写这个字段时 `mygo build` 会在根目录执行 `go list .` 并失败。
+
 `go tool mygo build` 在 macOS 上写出：
 
 - `build/darwin-arm64/Clash Go.app`（`Info.plist`、`resources/icon.png` 生成的图标、ad-hoc 签名）
@@ -59,7 +61,7 @@ go tool cover -func=coverage.out | tail -n 1
 - 会真的打开窗口、改系统代理或打开 TUN 的测试带 `//go:build integration`，默认不编进去。
 - 内核测试用 `httptest` 提供一份只含 `DIRECT` 的订阅，不访问外网。mihomo 是进程内单例，这些测试不能 `t.Parallel`。
 - 覆盖率暂不设门槛。
-- 设置 `CLASHGO_SCREENSHOT_DIR` 后，`internal/ui` 的测试会用 `ui.NewTester` 把每一页画成 940×700 的 PNG，亮色和暗色各一张，文件名像 `home-light.png`、`home-dark.png`、`proxies-light.png`。画的是主窗口那份视图，没有系统标题栏。CI 会把它们当成 artifact 上传。
+- 设置 `CLASHGO_SCREENSHOT_DIR` 后，`internal/ui` 的测试会用 `ui.NewTester` 把每一页画成 940×700 的 PNG，亮色和暗色各一张，文件名像 `home-light.png`、`home-dark.png`、`proxies-light.png`。画的是主窗口那份视图，没有系统标题栏。已提交的一份在 `docs/spec/screenshots/m1/`。CI 也会把它们当成 artifact 上传。
 
 ## CI
 
