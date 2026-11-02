@@ -66,36 +66,7 @@ func (a *App) ready(quitting *bool) {
 		{Role: mygo.RoleWindowMenu},
 	}))
 
-	proxyItem := &mygo.MenuItem{
-		ID:      "system-proxy",
-		Label:   "系统代理",
-		Type:    mygo.MenuItemCheckbox,
-		Checked: a.settings.SystemProxy,
-	}
-	proxyItem.Click = func(item *mygo.MenuItem, _ *mygo.Window) {
-		if err := a.SetSystemProxy(item.Checked); err != nil {
-			item.SetChecked(!item.Checked)
-		}
-	}
-	tunItem := &mygo.MenuItem{
-		ID:      "tun",
-		Label:   "TUN 模式",
-		Type:    mygo.MenuItemCheckbox,
-		Checked: a.settings.TUN,
-	}
-	tunItem.Click = func(item *mygo.MenuItem, _ *mygo.Window) {
-		if err := a.SetTUN(item.Checked); err != nil {
-			item.SetChecked(!item.Checked)
-		}
-	}
-	menu := mygo.NewMenu([]*mygo.MenuItem{
-		{Label: "显示主窗口", Click: func(*mygo.MenuItem, *mygo.Window) { a.showMain() }},
-		mygo.Separator(),
-		proxyItem,
-		tunItem,
-		mygo.Separator(),
-		{Role: mygo.RoleQuit},
-	})
+	menu := BuildTrayMenu(a.traySnapshot(), a.trayActions())
 	tray, err := mygo.NewTray(mygo.TrayOptions{
 		Icon:           trayIcon(),
 		IconIsTemplate: runtime.GOOS == "darwin",
@@ -107,6 +78,24 @@ func (a *App) ready(quitting *bool) {
 		return
 	}
 	a.tray = tray
+	tray.OnClick(func() { a.trayClick() })
+}
+
+func (a *App) trayClick() {
+	switch a.model.Prefs.TrayEvent {
+	case "tray_menu":
+		if a.tray != nil {
+			a.tray.PopUpMenu()
+		}
+	case "system_proxy":
+		_ = a.SetSystemProxy(!a.settings.SystemProxy)
+	case "tun":
+		_ = a.SetTUN(!a.settings.TUN)
+	case "disable":
+		return
+	default:
+		a.showMain()
+	}
 }
 
 func (a *App) showMain() {

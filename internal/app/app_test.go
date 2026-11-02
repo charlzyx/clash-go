@@ -2,6 +2,9 @@ package app
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/charlzyx/clash-go/internal/appconfig"
@@ -73,6 +76,31 @@ func TestSetSystemProxyUsesController(t *testing.T) {
 	got, _ = store.Load()
 	if !got.SystemProxy {
 		t.Fatal("failed Set cleared the saved proxy")
+	}
+}
+
+func TestSetModeRewritesProfile(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte("mode: rule\nmixed-port: 7897\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := New(Options{
+		Dirs:  appdir.Fixed(dir),
+		Store: appconfig.NewMemory(dir),
+		Proxy: sysproxy.NewMemory(),
+		TUN:   tun.NewMemory(),
+		Core:  core.New(),
+	})
+	a.dir = dir
+	if err := a.SetMode("direct"); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(filepath.Join(dir, "config.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), "mode: direct") {
+		t.Fatalf("config %s", body)
 	}
 }
 

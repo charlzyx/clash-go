@@ -1,8 +1,7 @@
 // Package sysproxy sets the operating system proxy.
 //
-// The M1 implementation records the requested settings and does not
-// change the OS. A later milestone supplies a macOS controller behind
-// the same interface. Tests substitute their own Controller.
+// Platform returns the macOS networksetup/scutil controller, or an
+// in-memory controller on other systems. Tests pass their own Controller.
 package sysproxy
 
 import "sync"
