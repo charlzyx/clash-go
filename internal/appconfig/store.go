@@ -11,10 +11,16 @@ import (
 	"path/filepath"
 )
 
-// Settings is what the tray toggles remember between launches.
+// Settings is what the app remembers between launches. Prefs is the
+// settings page encoded as JSON so new fields do not need a migration.
 type Settings struct {
-	SystemProxy bool `json:"systemProxy"`
-	TUN         bool `json:"tun"`
+	SystemProxy bool   `json:"systemProxy"`
+	TUN         bool   `json:"tun"`
+	TrayEvent   string `json:"trayEvent,omitempty"`
+	InlineModes bool   `json:"inlineModes,omitempty"`
+	ProxyMenu   string `json:"proxyMenu,omitempty"`
+	Lightweight bool   `json:"lightweight,omitempty"`
+	Prefs       string `json:"prefs,omitempty"`
 }
 
 // Store loads and saves Settings. Dir is the directory passed to the kernel.

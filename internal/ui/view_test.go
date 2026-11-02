@@ -5,8 +5,9 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
-	"time"
 
 	mygoui "github.com/egoist/mygo/ui"
 )
@@ -31,10 +32,13 @@ func demoHome() HomeState {
 func TestHomeShowsKernelStatus(t *testing.T) {
 	m := NewModel(demoHome())
 	tt := mygoui.NewTester(m.View, WindowWidth, WindowHeight)
-	for _, text := range []string{"首页", "内核版本", "1.19.33", "运行状态", "运行中", "7897", "rule"} {
+	for _, text := range []string{"首页", "内核版本", "1.19.33", "混合代理端口", "7897", "运行时间", "0:00:00", "规则数量", "当前节点", "网络设置", "代理模式", "流量统计", "网站测试", "Apple", "IP 信息", "Clash 信息", "系统信息"} {
 		if !tt.HasText(text) {
-			t.Errorf("home missing %q\ntexts: %q", text, tt.Texts())
+			t.Errorf("home missing %q", text)
 		}
+	}
+	if !tt.HasText("运行中") {
+		t.Fatal("sidebar status")
 	}
 }
 
@@ -51,8 +55,11 @@ func TestNavigatePages(t *testing.T) {
 		if m.Router.Path() != p.Path {
 			t.Fatalf("path %q after clicking %s, want %s", m.Router.Path(), p.Nav, p.Path)
 		}
-		if !tt.HasText(p.Title) || !tt.HasText(p.Body) {
-			t.Fatalf("page %s missing %q or %q\ntexts: %q", p.ID, p.Title, p.Body, tt.Texts())
+		if !tt.HasText(p.Title) {
+			t.Fatalf("page %s missing title %q", p.ID, p.Title)
+		}
+		if p.Body != "" && !tt.HasText(p.Body) {
+			t.Fatalf("page %s missing %q", p.ID, p.Body)
 		}
 	}
 	if err := tt.Click("首页"); err != nil {
@@ -148,14 +155,343 @@ func hasExactText(tt *mygoui.Tester, s string) bool {
 func TestStoppedHome(t *testing.T) {
 	m := NewModel(HomeState{Version: "1.19.33", Error: "内核没有启动"})
 	tt := mygoui.NewTester(m.View, WindowWidth, WindowHeight)
-	if !tt.HasText("已停止") || !tt.HasText("内核没有启动") {
+	if !tt.HasText("已停止") || !tt.HasText("内核没有启动") || !tt.HasText("内核未运行") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 }
 
-// TestPageScreenshots renders every page at the Verge window size, in
-// light and dark. Set CLASHGO_SCREENSHOT_DIR to also write
-// <id>-light.png and <id>-dark.png.
+func TestHomeSettingsCancelDoesNotHide(t *testing.T) {
+	m := NewModel(demoHome())
+	tt := mygoui.NewTester(m.View, WindowWidth, WindowHeight)
+	if err := tt.Click("home-settings"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText("订阅卡") || !tt.HasText("系统信息卡") {
+		t.Fatal("settings dialog")
+	}
+	if err := tt.Click("订阅卡"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("home-cancel"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText("导入订阅") {
+		t.Fatal("cancel hid the profile card")
+	}
+	if err := tt.Click("home-settings"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("订阅卡"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("home-save"); err != nil {
+		t.Fatal(err)
+	}
+	if tt.HasText("导入订阅") {
+		t.Fatal("save kept the profile card")
+	}
+	if !m.Cards.Proxy || m.Cards.Profile {
+		t.Fatalf("cards %+v", m.Cards)
+	}
+}
+
+func TestDirectModeDisablesNodeControls(t *testing.T) {
+	m := NewModel(demoHome())
+	m.Home.Node = CurrentNode{Group: "Proxy", Name: "香港 01", Type: "ss", Delay: 128}
+	tt := mygoui.NewTester(m.View, WindowWidth, WindowHeight)
+	if err := tt.Click("mode-direct"); err != nil {
+		t.Fatal(err)
+	}
+	if m.Home.Mode != "direct" || !tt.HasText("直连模式") {
+		t.Fatalf("mode %s", m.Home.Mode)
+	}
+	if err := tt.Click("delay-test"); err != nil {
+		t.Fatal(err)
+	}
+	if m.Home.Node.Delay == DelayTesting {
+		t.Fatal("delay test ran in direct mode")
+	}
+}
+
+func TestHomeColumnsFollowWidth(t *testing.T) {
+	wide := NewModel(demoHome())
+	wt := mygoui.NewTester(wide.View, WindowWidth, WindowHeight)
+	narrowModel := NewModel(demoHome())
+	nt := mygoui.NewTester(narrowModel.View, 520, 520)
+	wr, ok := wt.Find("当前节点")
+	if !ok {
+		t.Fatal("wide title")
+	}
+	ir, ok := wt.Find("导入订阅")
+	if !ok {
+		t.Fatal("wide import")
+	}
+	if wr.X <= ir.X {
+		t.Fatalf("wide layout stacked: node x=%v import x=%v", wr.X, ir.X)
+	}
+	nr, ok := nt.Find("当前节点")
+	if !ok {
+		t.Fatal("narrow title")
+	}
+	ni, ok := nt.Find("导入订阅")
+	if !ok {
+		t.Fatal("narrow import")
+	}
+	if nr.Y <= ni.Y+20 {
+		t.Fatalf("narrow layout is still two columns: node y=%v import y=%v", nr.Y, ni.Y)
+	}
+}
+
+func TestIPMaskAndChart(t *testing.T) {
+	m := DemoModel()
+	tt := renderModel(m, WindowWidth, 1400, false)
+	if !tt.HasText("••••••••••") {
+		t.Fatal("ip not masked")
+	}
+	if tt.HasText("203.0.113.10") {
+		t.Fatal("ip visible while masked")
+	}
+	if err := tt.Click("ip-eye"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText("203.0.113.10") {
+		t.Fatal("ip stayed masked")
+	}
+	if !tt.HasText("自动刷新") || tt.HasText("自动刷新:") {
+		t.Fatal("countdown while auto refresh is off")
+	}
+	if err := tt.Click("traffic-chart"); err != nil {
+		t.Fatal(err)
+	}
+	if m.ChartSmooth || !tt.HasText("线性") {
+		t.Fatal("chart did not switch to linear")
+	}
+}
+
+func TestProxyEmptyAndChain(t *testing.T) {
+	m := NewModel(demoHome())
+	tt := mygoui.NewTester(m.View, WindowWidth, WindowHeight)
+	if err := tt.Click("代理"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText("代理组") || !tt.HasText("尚未导入订阅") || !tt.HasText("前往订阅") {
+		t.Fatal("no-subscription empty state")
+	}
+	m.Home.Mode = "direct"
+	tt = mygoui.NewTester(m.View, WindowWidth, WindowHeight)
+	m.Router.Replace("/proxies")
+	tt = mygoui.NewTester(m.View, WindowWidth, WindowHeight)
+	if !tt.HasText("直连模式") {
+		t.Fatal("direct page")
+	}
+	if tt.HasText("尚未导入订阅") {
+		t.Fatal("direct page showed the subscription empty state")
+	}
+
+	m = DemoModel()
+	m.Router.Replace("/proxies")
+	tt = renderModel(m, WindowWidth, WindowHeight, false)
+	if !tt.HasText("香港 01") || !tt.HasText("Selector") {
+		t.Fatal("groups")
+	}
+	if err := tt.Click("chain-toggle"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText("我明白，开启") || !tt.HasText("保持关闭") {
+		t.Fatal("chain confirm")
+	}
+	if err := tt.Click("chain-keep"); err != nil {
+		t.Fatal(err)
+	}
+	if m.Chain.On {
+		t.Fatal("keep disabled turned the chain on")
+	}
+	if err := tt.Click("chain-toggle"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("chain-enable"); err != nil {
+		t.Fatal(err)
+	}
+	if !m.Chain.On || !tt.HasText("链式代理模式") {
+		t.Fatal("chain did not enable")
+	}
+}
+
+func TestProfileImportAndDelete(t *testing.T) {
+	m := NewModel(demoHome())
+	m.Router.Replace("/profile")
+	tt := mygoui.NewTester(m.View, WindowWidth, WindowHeight)
+	if !tt.HasText("订阅") || !tt.HasText("粘贴") || !tt.HasText("新建") {
+		t.Fatal("import row")
+	}
+	m.ProfileURL = "ftp://example.com/a"
+	tt = mygoui.NewTester(m.View, WindowWidth, WindowHeight)
+	if err := tt.Click("do-import"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText("无效的订阅链接") {
+		t.Fatalf("notice %q", m.Notice)
+	}
+	m.Notice = ""
+	m.ProfileURL = "https://example.com/sub"
+	tt = mygoui.NewTester(m.View, WindowWidth, WindowHeight)
+	if !tt.HasText("清除") {
+		t.Fatal("clear should replace paste")
+	}
+	if err := tt.Click("do-import"); err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Profiles) != 1 || m.Profiles[0].Name != "example.com" {
+		t.Fatalf("profiles %+v", m.Profiles)
+	}
+
+	m.Form = ProfileForm{Open: true, Type: "remote", Interval: 60, Auto: true, URL: "https://example.com/b", Name: "短间隔"}
+	tt = mygoui.NewTester(m.View, WindowWidth, WindowHeight)
+	if !tt.HasText("1440") || !tt.HasText("使用系统代理更新") {
+		t.Fatal("remote form")
+	}
+	if err := tt.Click("form-save"); err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Profiles) != 2 {
+		t.Fatalf("saved %d", len(m.Profiles))
+	}
+
+	m.DeleteUID = m.Profiles[0].UID
+	tt = mygoui.NewTester(m.View, WindowWidth, WindowHeight)
+	if !tt.HasText("此操作不可逆") {
+		t.Fatal("delete confirm")
+	}
+	if err := tt.Click("delete-ok"); err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Profiles) != 1 {
+		t.Fatalf("after delete %+v", m.Profiles)
+	}
+}
+
+func TestProfileMenuRemoteHasExtraItems(t *testing.T) {
+	m := DemoModel()
+	m.Router.Replace("/profile")
+	tt := renderModel(m, WindowWidth, WindowHeight, false)
+	if err := tt.RightClick("示例订阅"); err != nil {
+		t.Fatal(err)
+	}
+	menu := tt.Menu()
+	joined := join(menu)
+	for _, item := range []string{"首 页", "分享二维码", "更新", "更新（代理）", "删除"} {
+		if !containsText(joined, item) {
+			t.Fatalf("remote menu missing %s in %v", item, menu)
+		}
+	}
+	if err := tt.RightClick("本地配置"); err != nil {
+		t.Fatal(err)
+	}
+	local := join(tt.Menu())
+	if containsText(local, "分享二维码") || containsText(local, "更新（代理）") {
+		t.Fatalf("local menu %v", tt.Menu())
+	}
+}
+
+func TestSettingsSections(t *testing.T) {
+	m := DemoModel()
+	m.Router.Replace("/settings")
+	tt := renderModel(m, WindowWidth, WindowHeight, false)
+	for _, title := range []string{"系统设置", "Clash 设置", "Verge 基础设置", "Verge 高级设置", "简体中文", "浅色", "深色", "系统", "v0.1.0"} {
+		if !tt.HasText(title) {
+			t.Errorf("settings missing %q", title)
+		}
+	}
+	if runtime.GOOS == "linux" && !m.ForceTray {
+		t.Fatal("demo should force the tray row so the macOS screenshot shows it")
+	}
+	if !tt.HasText("托盘点击事件") {
+		t.Fatal("tray click row")
+	}
+	plain := NewModel(demoHome())
+	plain.Router.Replace("/settings")
+	pt := mygoui.NewTester(plain.View, WindowWidth, WindowHeight)
+	if runtime.GOOS == "linux" && pt.HasText("托盘点击事件") {
+		t.Fatal("linux build showed 托盘点击事件")
+	}
+	if runtime.GOOS != "linux" && !pt.HasText("托盘点击事件") {
+		t.Fatal("macOS build hid 托盘点击事件")
+	}
+
+	m.Prefs.SocksOn = true
+	m.Prefs.SocksPort = m.Prefs.MixedPort
+	m.Dialogs.Ports = true
+	tt = renderModel(m, WindowWidth, WindowHeight, false)
+	if !tt.HasText("已启用的监听端口不能重复") {
+		t.Fatal("duplicate port")
+	}
+	if runtime.GOOS == "linux" && !tt.HasText("Tproxy") {
+		t.Fatal("linux port dialog")
+	}
+	if runtime.GOOS != "linux" && tt.HasText("Tproxy") {
+		t.Fatal("non-linux tproxy row")
+	}
+
+	m.Dialogs.Ports = false
+	m.DNSAsk = true
+	tt = renderModel(m, WindowWidth, WindowHeight, false)
+	if !tt.HasText("仍然开启") || !tt.HasText("保持关闭") {
+		t.Fatal("dns confirm buttons")
+	}
+	m.Dialogs.Misc = true
+	m.DNSAsk = false
+	m.Prefs.ProxyColumns = AutoProxyColumns
+	tt = renderModel(m, WindowWidth, WindowHeight, false)
+	if !tt.HasText("自动") || !tt.HasText("内部值 6") {
+		t.Fatal("auto columns")
+	}
+	m.Dialogs.Misc = false
+	m.Dialogs.Theme = true
+	tt = renderModel(m, WindowWidth, WindowHeight, false)
+	if !tt.HasText("主要颜色") || !tt.HasText("成功颜色") {
+		t.Fatal("theme swatches")
+	}
+	m.Dialogs.Theme = false
+	m.Dialogs.Hotkey = true
+	tt = renderModel(m, WindowWidth, WindowHeight, false)
+	if !tt.HasText("打开面板") || !tt.HasText("重新激活订阅") {
+		t.Fatal("hotkeys")
+	}
+	m.Dialogs.Hotkey = false
+	m.Dialogs.Backup = true
+	tt = renderModel(m, WindowWidth, WindowHeight, false)
+	if !tt.HasText("启用定时备份") || !tt.HasText("24") {
+		t.Fatal("backup defaults")
+	}
+}
+
+func TestManualOpensDocs(t *testing.T) {
+	m := NewModel(demoHome())
+	tt := mygoui.NewTester(m.View, WindowWidth, WindowHeight)
+	if err := tt.Click("home-manual"); err != nil {
+		t.Fatal(err)
+	}
+	if len(tt.OpenedURLs()) != 1 || tt.OpenedURLs()[0] != "https://clash-verge-rev.github.io/index.html" {
+		t.Fatalf("urls %v", tt.OpenedURLs())
+	}
+}
+
+func TestPaperColors(t *testing.T) {
+	m := NewModel(demoHome())
+	light := renderModel(m, WindowWidth, WindowHeight, false).Image()
+	darkModel := NewModel(demoHome())
+	darkModel.Prefs.ThemeMode = "dark"
+	dark := renderModel(darkModel, WindowWidth, WindowHeight, false).Image()
+	lr, lg, lb, _ := light.At(4, 4).RGBA()
+	if lr>>8 != 0xF5 || lg>>8 != 0xF5 || lb>>8 != 0xF5 {
+		t.Fatalf("light paper #%02x%02x%02x", lr>>8, lg>>8, lb>>8)
+	}
+	dr, dg, db, _ := dark.At(4, 4).RGBA()
+	if dr>>8 != 0x2E || dg>>8 != 0x30 || db>>8 != 0x3D {
+		t.Fatalf("dark paper #%02x%02x%02x", dr>>8, dg>>8, db>>8)
+	}
+}
+
 func TestPageScreenshots(t *testing.T) {
 	dir := os.Getenv("CLASHGO_SCREENSHOT_DIR")
 	if dir != "" {
@@ -163,22 +499,25 @@ func TestPageScreenshots(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	var light, dark *image.RGBA
 	for _, theme := range []struct {
 		name string
 		dark bool
 	}{{"light", false}, {"dark", true}} {
 		for _, p := range Pages() {
-			img := renderPage(demoHome(), p.Path, theme.dark)
+			m := DemoModel()
+			if theme.dark {
+				m.Prefs.ThemeMode = "dark"
+			} else {
+				m.Prefs.ThemeMode = "light"
+			}
+			if p.Path != "/home" {
+				m.Router.Replace(p.Path)
+			}
+			tt := renderModel(m, WindowWidth, WindowHeight, theme.dark)
+			img := tt.Image()
 			b := img.Bounds()
 			if b.Dx() != WindowWidth || b.Dy() != WindowHeight {
-				t.Fatalf("%s-%s is %dx%d, want %dx%d", p.ID, theme.name, b.Dx(), b.Dy(), WindowWidth, WindowHeight)
-			}
-			if p.ID == "home" && !theme.dark {
-				light = img
-			}
-			if p.ID == "home" && theme.dark {
-				dark = img
+				t.Fatalf("%s-%s is %dx%d", p.ID, theme.name, b.Dx(), b.Dy())
 			}
 			if dir == "" {
 				continue
@@ -189,26 +528,6 @@ func TestPageScreenshots(t *testing.T) {
 			}
 		}
 	}
-	if light == nil || dark == nil {
-		t.Fatal("missing home frames")
-	}
-	if sameRGBA(light, dark) {
-		t.Fatal("light and dark home frames are identical")
-	}
-}
-
-func renderPage(home HomeState, path string, dark bool) *image.RGBA {
-	m := NewModel(home)
-	if path != "/home" {
-		m.Router.Replace(path)
-	}
-	tt := mygoui.NewTester(m.View, WindowWidth, WindowHeight)
-	tt.SetScale(1)
-	tt.SetDark(dark)
-	for i := 0; i < 5 && tt.FramePending(); i++ {
-		tt.Advance(time.Second)
-	}
-	return tt.Image()
 }
 
 func writePNG(path string, img image.Image) error {
@@ -220,14 +539,6 @@ func writePNG(path string, img image.Image) error {
 	return png.Encode(f, img)
 }
 
-func sameRGBA(a, b *image.RGBA) bool {
-	if a == nil || b == nil || !a.Rect.Eq(b.Rect) || len(a.Pix) != len(b.Pix) {
-		return false
-	}
-	for i := range a.Pix {
-		if a.Pix[i] != b.Pix[i] {
-			return false
-		}
-	}
-	return true
-}
+func join(parts []string) string { return strings.Join(parts, "\n") }
+
+func containsText(s, sub string) bool { return strings.Contains(s, sub) }
