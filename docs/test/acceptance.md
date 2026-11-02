@@ -80,7 +80,7 @@
 | ID | 预期（相对 Verge Rev） | 怎么测 | 规格 |
 | --- | --- | --- | --- |
 | TUN-01 | `use_tun(cfg, true)` 得到 `tun.enable=true` | unit | settings §7.2 |
-| TUN-02 | enable 且 DNS `enhanced-mode` 为 fake-ip 或缺省时，强制 `dns.enable=true`；缺省补 `enhanced-mode=fake-ip`、`fake-ip-range=198.18.0.1/16`；IPv6 时补 `fake-ip-range6=2001:2::0/64` | unit | 与 fake-ip 的耦合在 enhance，对话框字段在 settings §7.2 |
+| TUN-02 | enable 且 DNS `enhanced-mode` 为 fake-ip 或缺省时，强制 `dns.enable=true`；缺省补 `enhanced-mode=fake-ip`、`fake-ip-range=198.18.0.1/16`；IPv6 时补 `fake-ip-range6=2001:2::0/64` | unit | 与 fake-ip 的耦合在 enhance，对话框字段在 settings §7.2。enhance 缺省补的 `fake-ip-range6=2001:2::0/64` 与设置 DNS 对话框 placeholder（[pages/settings.md](../spec/pages/settings.md) §7.4 `fdfe:dcba:9876::1/64`）本来就可以不同；落地以 enhance 源码为准，不要拿对话框 placeholder 覆盖 enhance 缺省 |
 | TUN-03 | `use_tun(cfg, false)` 得到 `tun.enable=false`，不改 DNS fake-ip | unit | settings §7.2 |
 | TUN-04 | `toggle_tun_mode` 写入 `enable_tun_mode`（`not_save_file` 时跳过写入），并触发 enhance 与重载 | unit 断言字段和调用；embed 断言重载后的 `tun.enable` | home §7 开关。服务不可用时 UI 走安装流程，不直接当成功写入 |
 | TUN-05 | 无特权时 reconcile 关闭 TUN 或给出提示（macOS 验收） | integration，darwin；需要 root 的路径 `t.Skip` | home §7「TUN 无服务」 |
@@ -93,7 +93,7 @@
 | --- | --- | --- | --- |
 | UI-R01 | 展示核心规则的条数和文案；搜索过滤不区分大小写 | ui；embed 可另断言 `/rules` 非空 | [outlines/rules.md](../spec/outlines/rules.md) |
 | UI-C01 | 订阅连接；展示 host / process / rule / download / upload；可关闭单条和全部 | ui：一行假数据，点击「关闭全部」调用 `CloseAll` | [outlines/connections.md](../spec/outlines/connections.md) |
-| UI-C02 | `auto_close_connection` 开启时，切换节点或 profile 后关闭旧连接 | unit 或 embed：假连接服务收到关闭 | 大纲未单列该策略，以 Verge 行为为准 |
+| UI-C02 | `auto_close_connection` 开启时，切换节点或 profile 后关闭旧连接 | unit 或 embed：假连接服务收到关闭 | [pages/settings.md](../spec/pages/settings.md) §7.13 `autoCloseConnections`。杂项对话框已有该开关；行为仍按 Verge：开启后切换节点或 profile 关闭旧连接 |
 | UI-L01 | 订阅核心日志；按 level 过滤；可清空本地缓冲 | ui | [outlines/logs.md](../spec/outlines/logs.md) |
 
 ## 7. 配置布局与 enhance `CFG-*`
