@@ -130,7 +130,7 @@ Windows 再追加 `twemoji mozilla`（`src/assets/styles/font.scss`，文件 `sr
 | 卡片头 | `px: 2`（16px）、`py: 1`（8px），图标 38×38，右边距 12px | `enhanced-card.tsx:54-86` |
 | 卡片内容 | `p: 2`；`noContentPadding` 时为 0 | `enhanced-card.tsx:109-114` |
 | 侧栏展开宽 | `flex: 1 0 200px`，右边框 1px `--divider-color` | `layout.scss:15-28` |
-| 侧栏收起宽 | 72px；项 52×52，圆角 12px；logo 区 56px | `layout.scss:265-346` |
+| 侧栏收起宽 | 72px；项 52×52，圆角 12px；logo 区 56×56（标记见 §8.1） | `layout.scss:265-346` |
 | 侧栏流量区 | 高 60px，内边距左右 20px | `layout.scss:72-78` |
 | 订阅工具行 | 高 36px，左右外边距 10px | `profiles.tsx:807-816` |
 | 订阅网格 | `repeat(auto-fill, minmax(clamp(260px, calc((100% - 24px) / 4), 480px), 1fr))`，`gap: 1`（8px） | `profiles.tsx:898-901` |
@@ -190,8 +190,19 @@ Windows 再追加 `twemoji mozilla`（`src/assets/styles/font.scss`，文件 `sr
 | 日志 | `SubjectOutlined` | `itemicon/logs.svg` | `:65` |
 | 测试 | `LockOpenOutlined` | `itemicon/unlock.svg` | `:70` |
 | 设置 | `SettingsOutlined` | `itemicon/settings.svg` | `:75` |
-| Logo 亮色 | — | `src/assets/image/icon_light.svg` + `logo.svg` | `layout-sidebar.tsx` |
-| Logo 暗色 | — | `icon_dark.svg` + `logo.svg` | 同上 |
+| Logo 亮色（Verge 对照） | — | `src/assets/image/icon_light.svg` + `logo.svg` | `layout-sidebar.tsx:136-147` |
+| Logo 暗色（Verge 对照） | — | `icon_dark.svg` + `logo.svg` | 同上 |
+
+上表 Logo 两行只作 Verge 对照：亮色 `icon_light.svg`、暗色 `icon_dark.svg`，各 36×36、`marginRight: '5px'`，再拼 `logo.svg` 词标（暗色 fill 白、亮色 fill 黑）。
+
+**clash-go 品牌位**用 [`docs/spec/assets/brand/favicon.svg`](./assets/brand/favicon.svg)。favicon 来自 egoist/mygo（MIT）。亮色和暗色同一张静态几何标记（青色圆角方块 + 白环），无 GIF。尺寸跟 Verge 槽位相同，落地资产不同：
+
+| 状态 | 槽位 | clash-go 内容 |
+| --- | --- | --- |
+| 展开 | 标记 36×36，右侧 `margin-right` 约 5px | 文案「Clash Go」 |
+| 收起 | logo 区 56×56（`--layout-nav-logo-size`，`layout.scss:269`） | 仅标记，仍是这张 favicon.svg |
+
+结构、文案颜色与归因见 `outlines/layout.md`「品牌位 / logo」。
 
 ### 8.2 首页
 

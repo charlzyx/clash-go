@@ -24,6 +24,9 @@ docs/spec/
 ├── README.md                 本索引：目录、页面清单、优先级、阅读约定
 ├── checklist.md              验收清单（截图比对用）
 ├── design-tokens.md          设计令牌（色、字、间距、圆角、阴影、图标）  [P0 已写]
+├── assets/
+│   └── brand/
+│       └── favicon.svg       侧栏品牌标记（egoist/mygo favicon.svg，MIT）
 ├── pages/
 │   ├── home.md               首页                                          [P0 完整]
 │   ├── proxies.md            代理                                          [P0 完整]
@@ -58,7 +61,7 @@ docs/spec/
 | **P0** | 设置 | `/settings` | `layout.components.navigation.tabs.settings` | 完整规格 `pages/settings.md` |
 | **P0** | 设计令牌 | — | — | 完整 `design-tokens.md` |
 | **P0** | 中英文案（上列四页 + shared / layout / 首页测试卡用到的 tests） | — | — | `i18n/` |
-| P1 | 整体布局 | 壳层 | — | 大纲 `outlines/layout.md`。窗口默认 940×700、最小 520×520 已记在大纲里，细节（拖拽排序、更新按钮、系统服务弹窗）待补 |
+| P1 | 整体布局 | 壳层 | — | 大纲 `outlines/layout.md`。窗口默认 940×700、最小 520×520，以及侧栏品牌位（mygo `favicon.svg`，展开 36×36 +「Clash Go」、收起 56×56 仅标记）已记下。细节（拖拽排序、更新按钮、系统服务弹窗）待补 |
 | P1 | 连接 | `/connections` | `layout.components.navigation.tabs.connections` | 大纲 |
 | P1 | 规则 | `/rules` | `layout.components.navigation.tabs.rules` | 大纲 |
 | P2 | 日志 | `/logs` | `layout.components.navigation.tabs.logs` | 大纲 |
