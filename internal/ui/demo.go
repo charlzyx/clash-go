@@ -108,6 +108,12 @@ func DemoModel() *Model {
 			Start: time.Now().Add(-time.Hour), Closed: true,
 		},
 	}
+	m.Logs = []LogItem{
+		{ID: 1, Time: "11-02 09:30:01", Type: "info", Payload: "[TCP] 127.0.0.1:52314 --> example.com:443 match DOMAIN-SUFFIX(example.com) using 香港 01"},
+		{ID: 2, Time: "11-02 09:30:02", Type: "debug", Payload: "proxy selected 香港 01"},
+		{ID: 3, Time: "11-02 09:30:03", Type: "warning", Payload: "DNS resolve example.com failed"},
+		{ID: 4, Time: "11-02 09:30:04", Type: "error", Payload: "dial tcp 203.0.113.10:443: connect: connection refused"},
+	}
 	return m
 }
 

@@ -43,6 +43,13 @@ type Core struct {
 	mu      sync.Mutex
 	running bool
 	dir     string
+
+	// logSub is the mihomo log subscription while the core is running.
+	// logBook is the ring the UI drains. Both exist so logging never
+	// blocks on a full subscriber: mihomo's Emit waits on that buffer.
+	logSub  <-chan log.Event
+	logDone chan struct{}
+	logBook logBook
 }
 
 // New returns a core that is not running.
@@ -68,7 +75,11 @@ func (c *Core) Start(homeDir string) error {
 	C.SetHomeDir(homeDir)
 	C.SetConfig(filepath.Join(homeDir, configFileName))
 
+	// Subscribe before apply so startup lines are kept. Stop the feed if
+	// apply fails; otherwise Emit can block the kernel logger on our buffer.
+	c.startLogFeed()
 	if err := apply(); err != nil {
+		c.stopLogFeed()
 		releaseListeners()
 		return err
 	}
@@ -104,6 +115,7 @@ func (c *Core) Stop() error {
 	}
 	closeProviders()
 	releaseListeners()
+	c.stopLogFeed()
 	c.running = false
 	return nil
 }

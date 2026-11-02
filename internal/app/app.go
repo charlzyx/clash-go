@@ -47,6 +47,7 @@ type App struct {
 	dir      string
 	profiles *profile.Store
 	started  time.Time
+	logSeq   uint64
 
 	win  *mygo.Window
 	tray *mygo.Tray
@@ -331,6 +332,8 @@ func (a *App) bindHooks() {
 		RefreshConnections:  a.refreshConnections,
 		RefreshRules:        a.loadRules,
 		UpdateRuleProvider:  a.updateRuleProvider,
+		RefreshLogs:         a.refreshLogs,
+		ClearLogs:           a.clearLogs,
 	}
 }
 
@@ -375,6 +378,38 @@ func (a *App) setPageVisible(on bool) {
 	a.model.PageVisible = on
 	if a.win != nil {
 		a.win.Invalidate()
+	}
+}
+
+func (a *App) refreshLogs() {
+	if a.model == nil || a.core == nil {
+		return
+	}
+	lines, next, ok := a.core.LogsSince(a.logSeq)
+	if !ok {
+		return
+	}
+	a.logSeq = next
+	if len(lines) == 0 {
+		return
+	}
+	items := make([]ui.LogItem, len(lines))
+	for i, line := range lines {
+		items[i] = ui.LogItem{
+			Time:    line.Time.Format("01-02 15:04:05"),
+			Type:    line.Level,
+			Payload: line.Payload,
+		}
+	}
+	a.model.AppendLogs(items)
+}
+
+func (a *App) clearLogs() {
+	if a.core != nil {
+		a.core.ClearLogs()
+	}
+	if a.model != nil {
+		a.model.Logs = nil
 	}
 }
 
