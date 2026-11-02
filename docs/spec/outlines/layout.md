@@ -24,7 +24,7 @@ Paper.layout
 ├── the_titlebar（无装饰）
 └── layout-content
     ├── layout-content__left 侧栏 200px（收起 72px）
-    │   ├── logo
+    │   ├── logo  展开 36×36 +「Clash Go」；收起 56×56 仅标记
     │   ├── the-menu 导航
     │   └── the-traffic 60px（收起时隐藏）
     └── layout-content__right
@@ -32,7 +32,16 @@ Paper.layout
         └── the-content → Outlet
 ```
 
-侧栏组件 `layout-sidebar.tsx`、项 `layout-item.tsx`、流量 `layout-traffic.tsx`。选中态、图标双套、收起尺寸见 `design-tokens.md`。
+侧栏组件 `layout-sidebar.tsx`、项 `layout-item.tsx`、流量 `layout-traffic.tsx`。选中态、图标双套、收起尺寸见 `design-tokens.md`。品牌位见下。
+
+### 品牌位 / logo
+
+侧栏顶部 `.the-logo`。槽位对齐 Verge `layout-sidebar.tsx:127-150` 与收起规则 `layout.scss:265-313`。Verge 这里是亮/暗两张图标再加 `logo.svg` 词标；clash-go 落地资产不同，令牌对照写在 `design-tokens.md` §8.1。
+
+资源：[`docs/spec/assets/brand/favicon.svg`](../assets/brand/favicon.svg)。favicon 来自 [egoist/mygo](https://github.com/egoist/mygo) `website/public/favicon.svg`（MIT，Copyright (c) 2026 MyGo contributors）。图形是青色（`#00add8`）圆角方块加白环，静态几何标记，无 GIF。mygo 官网 animation 与 README banner GIF 不纳入品牌位。
+
+- **展开**（侧栏 200px）：标记 **36×36**。标记右侧紧挨文案「Clash Go」（直接排字），`margin-right` 约 **5px**。Verge 同一枚图标是 `marginRight: '5px'`，另有 `marginTop` / `marginLeft` 各 `-3px`，所在内层行高 27px（`layout-sidebar.tsx:131-144`）；clash-go 沿用这组偏移。文案颜色用主题主文字色（亮 `#000000` / 暗 `#FFFFFF`），对应 Verge `LogoSvg` 的 `fill`（`layout-sidebar.tsx:147`）。
+- **收起**（侧栏 72px）：标记落在 **56×56** 的 logo 区内（`--layout-nav-logo-size: 56px`，`layout.scss:269、287-294`），区内只显示标记并居中。标记仍是同一张 36×36 的 favicon.svg（Verge 收起时词标 `svg:last-child` 为 `display: none`，图标 `margin: 0` 后仍是 36×36，`layout.scss:303-309`）。
 
 右键菜单（`layout-sidebar.tsx:65-96`）：解锁/锁定排序、恢复默认、收起/展开。文案 `layout.components.navigation.menu.*`。排序结果写入 `verge.menu_order`。
 
