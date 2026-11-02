@@ -220,10 +220,15 @@ func sectionCard(c *mygoui.Context, pal Palette, title string, body func()) mygo
 	return col
 }
 
-// settingsChevron is the trailing mark of every clickable settings row:
-// one space, then ›. The space is part of the text, so a value such as
-// "7897" reads "7897 ›" rather than "7897›".
-const settingsChevron = " ›"
+// settingsChevron is the trailing mark of every clickable settings row.
+// The glyph is exactly 「›」. A spacer in front of it keeps at least one
+// space between the value (or the row title) and the mark, including
+// plain trails such as 「7897」 and 「?」.
+const settingsChevron = "›"
+
+// chevronGap is the space before ›, wider than one 13px space so the
+// value and the mark do not sit flush.
+const chevronGap float32 = 8
 
 // clickRow is a settings row. click nil means the row is not a button and
 // trail draws the control. A non-nil click shows a chevron, or "…" while busy.
@@ -247,6 +252,7 @@ func clickRow(c *mygoui.Context, pal Palette, label, id string, busy bool, click
 			if busy {
 				mygoui.Text(c, "…").FontSize(14).TextColor(pal.Primary)
 			} else {
+				mygoui.Box(c).Width(chevronGap).Shrink(0)
 				mygoui.Text(c, settingsChevron).FontSize(18).TextColor(pal.TextMuted)
 			}
 		})
