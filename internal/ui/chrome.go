@@ -41,6 +41,55 @@ func textButton(c *mygoui.Context, pal Palette, label, tip, id string) bool {
 	return b.Clicked()
 }
 
+// textLink is a full-width text button whose label starts at the left,
+// matching the body lines of a card.
+func textLink(c *mygoui.Context, pal Palette, label, tip, id string) bool {
+	b := mygoui.ButtonBase(c.Key(id)).FillWidth().Height(28).Label(id)
+	b.Justify(mygoui.Start).AlignItems(mygoui.Center)
+	b.Background(mygoui.Transparent).TextColor(pal.Text)
+	b.Tooltip(tip)
+	b.Children(func() {
+		mygoui.Text(c, label).FontSize(13)
+	})
+	return b.Clicked()
+}
+
+// helpMark is the tooltip question mark used on settings rows.
+func helpMark(c *mygoui.Context, pal Palette, tip string) {
+	mygoui.Text(c, "?").FontSize(12).Tooltip(tip).TextColor(pal.TextMuted)
+}
+
+// segmentButtons draws labels as one joined group. The current id is filled.
+func segmentButtons(c *mygoui.Context, pal Palette, group string, items []struct{ id, label string }, current string, pick func(string)) {
+	mygoui.Row(c).Gap(0).Shrink(0).Label(group).Children(func() {
+		last := len(items) - 1
+		for i, item := range items {
+			on := current == item.id
+			b := mygoui.ButtonBase(c.Key(group+"-"+item.id)).Height(28).Padding(0, 12).Label(group + "-" + item.id)
+			var tl, tr, br, bl float32
+			if i == 0 {
+				tl, bl = 6, 6
+			}
+			if i == last {
+				tr, br = 6, 6
+			}
+			b.Radius(tl, tr, br, bl)
+			if i > 0 {
+				b.Margin(0, 0, 0, -1)
+			}
+			if on {
+				b.Background(pal.Primary).TextColor(pal.OnPrimary).Border(1, pal.Primary)
+			} else {
+				b.Background(pal.Card).TextColor(pal.Text).Border(1, pal.Primary)
+			}
+			b.Children(func() { mygoui.Text(c, item.label).FontSize(13) })
+			if b.Clicked() && pick != nil {
+				pick(item.id)
+			}
+		}
+	})
+}
+
 func filledButton(c *mygoui.Context, pal Palette, label, id string, on bool) bool {
 	b := mygoui.ButtonBase(c.Key(id)).Height(28).Padding(0, 10).Radius(6).Label(id)
 	if on {
@@ -171,6 +220,16 @@ func sectionCard(c *mygoui.Context, pal Palette, title string, body func()) mygo
 	return col
 }
 
+// settingsChevron is the trailing mark of every clickable settings row.
+// The glyph is exactly 「›」. A spacer in front of it keeps at least one
+// space between the value (or the row title) and the mark, including
+// plain trails such as 「7897」 and 「?」.
+const settingsChevron = "›"
+
+// chevronGap is the space before ›, wider than one 13px space so the
+// value and the mark do not sit flush.
+const chevronGap float32 = 8
+
 // clickRow is a settings row. click nil means the row is not a button and
 // trail draws the control. A non-nil click shows a chevron, or "…" while busy.
 func clickRow(c *mygoui.Context, pal Palette, label, id string, busy bool, click func(), trail func()) {
@@ -193,7 +252,8 @@ func clickRow(c *mygoui.Context, pal Palette, label, id string, busy bool, click
 			if busy {
 				mygoui.Text(c, "…").FontSize(14).TextColor(pal.Primary)
 			} else {
-				mygoui.Text(c, "›").FontSize(18).TextColor(pal.TextMuted)
+				mygoui.Box(c).Width(chevronGap).Shrink(0)
+				mygoui.Text(c, settingsChevron).FontSize(18).TextColor(pal.TextMuted)
 			}
 		})
 		if b.Clicked() {

@@ -12,18 +12,26 @@ import (
 // CatalogItem is one subscription in profiles.json. It is not ImportHTTP's
 // Item: that type is the fetch result, this one is the saved index.
 type CatalogItem struct {
-	UID         string        `json:"uid"`
-	Name        string        `json:"name"`
-	Description string        `json:"desc,omitempty"`
-	URL         string        `json:"url,omitempty"`
-	Type        string        `json:"type"`
-	Home        string        `json:"home,omitempty"`
-	Updated     time.Time     `json:"updated,omitempty"`
-	Used        int64         `json:"used,omitempty"`
-	Total       int64         `json:"total,omitempty"`
-	Expire      time.Time     `json:"expire,omitempty"`
-	File        string        `json:"file,omitempty"`
-	Option      CatalogOption `json:"option"`
+	UID         string         `json:"uid"`
+	Name        string         `json:"name"`
+	Description string         `json:"desc,omitempty"`
+	URL         string         `json:"url,omitempty"`
+	Type        string         `json:"type"`
+	Home        string         `json:"home,omitempty"`
+	Updated     time.Time      `json:"updated,omitempty"`
+	Used        int64          `json:"used,omitempty"`
+	Total       int64          `json:"total,omitempty"`
+	Expire      time.Time      `json:"expire,omitempty"`
+	File        string         `json:"file,omitempty"`
+	Option      CatalogOption  `json:"option"`
+	Selected    []SelectedNode `json:"selected,omitempty"`
+}
+
+// SelectedNode is one group→node choice stored on a subscription, matching
+// Verge's profiles selected list.
+type SelectedNode struct {
+	Name string `json:"name"`
+	Now  string `json:"now"`
 }
 
 // CatalogOption is the remote form and the extension slots stored in the index.
@@ -94,6 +102,40 @@ func (s *Store) Save(f File) error {
 	}
 	b = append(b, '\n')
 	return os.WriteFile(s.path(), b, 0o644)
+}
+
+// RecordSelected stores group→node on the subscription uid. A second write
+// for the same group replaces now instead of appending.
+func (s *Store) RecordSelected(uid, group, node string) error {
+	if group == "" || node == "" {
+		return errors.New("selection is empty")
+	}
+	f, err := s.Load()
+	if err != nil {
+		return err
+	}
+	found := false
+	for i := range f.Items {
+		if f.Items[i].UID != uid {
+			continue
+		}
+		found = true
+		replaced := false
+		for j := range f.Items[i].Selected {
+			if f.Items[i].Selected[j].Name == group {
+				f.Items[i].Selected[j].Now = node
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			f.Items[i].Selected = append(f.Items[i].Selected, SelectedNode{Name: group, Now: node})
+		}
+	}
+	if !found {
+		return nil
+	}
+	return s.Save(f)
 }
 
 // ErrInvalidURL is returned when a subscription link is not http(s).

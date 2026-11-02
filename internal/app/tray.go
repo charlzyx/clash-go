@@ -66,7 +66,7 @@ func BuildTrayMenu(s TraySnapshot, act TrayActions) *mygo.Menu {
 	}
 	var items []*mygo.MenuItem
 	items = append(items, &mygo.MenuItem{
-		ID: "dashboard", Label: "打开面板", Accelerator: "CmdOrCtrl+Shift+O",
+		ID: "dashboard", Label: "仪表板", Accelerator: "CmdOrCtrl+Shift+O",
 		Click: func(*mygo.MenuItem, *mygo.Window) {
 			if act.Show != nil {
 				act.Show()
@@ -298,6 +298,11 @@ func (a *App) trayActions() TrayActions {
 	return TrayActions{
 		Show:    a.showMain,
 		SetMode: func(mode string) { _ = a.SetMode(mode) },
+		SelectNode: func(group, node string) {
+			if err := a.SelectProxy(group, node); err != nil && a.model != nil {
+				a.model.Notice = err.Error()
+			}
+		},
 		SetProxy: func(on bool) {
 			if err := a.SetSystemProxy(on); err != nil && a.model != nil {
 				a.model.Notice = err.Error()

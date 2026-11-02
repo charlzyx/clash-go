@@ -4,6 +4,10 @@ import (
 	"time"
 
 	mygoui "github.com/egoist/mygo/ui"
+
+	"github.com/charlzyx/clash-go/internal/clashlog"
+	"github.com/charlzyx/clash-go/internal/conn"
+	"github.com/charlzyx/clash-go/internal/rules"
 )
 
 // DemoModel is the populated window the M2 screenshots render.
@@ -68,7 +72,53 @@ func DemoModel() *Model {
 	}
 	m.CurrentProfile = "p1"
 	m.Prefs.SystemProxy = true
+	fillM3(m)
 	return m
+}
+
+func fillM3(m *Model) {
+	now := time.Date(2026, 4, 21, 13, 5, 22, 0, time.UTC)
+	m.Conns = ConnView{
+		Layout: "table",
+		Tab:    "active",
+		Order:  "default",
+		Active: []conn.Item{
+			{ID: "c1", Host: "www.google.com", DestinationIP: "142.250.190.78", DestinationPort: "443", Type: "HTTPS", Network: "tcp", Process: "Safari", Rule: "DomainSuffix", RulePayload: "google.com", Chains: []string{"HK 01", "Proxy"}, Download: 1024, DownloadSpeed: 1536, Start: now.Add(-10 * time.Second), SourceIP: "127.0.0.1", SourcePort: "52311"},
+			{ID: "c2", DestinationIP: "1.1.1.1", DestinationPort: "80", Type: "HTTP", Network: "tcp", Rule: "Match", Start: now.Add(-30 * time.Second), SourceIP: "127.0.0.1", SourcePort: "1"},
+			{ID: "c3", Host: "github.com", DestinationPort: "443", Type: "HTTPS", Network: "tcp", Process: "curl", Rule: "Domain", RulePayload: "github.com", Start: now.Add(-5 * time.Second)},
+		},
+		Closed: []conn.Item{
+			{ID: "c4", Host: "example.com", DestinationPort: "443", Closed: true, Start: now.Add(-time.Hour)},
+			{ID: "c5", Host: "api.example.com", DestinationPort: "443", Closed: true, Start: now.Add(-2 * time.Hour)},
+		},
+	}
+	m.Rules = RuleView{
+		Items: []rules.Item{
+			{Type: "DomainSuffix", Payload: "google.com", Proxy: "Proxy"},
+			{Type: "Domain", Payload: "ads.example.com", Proxy: "REJECT"},
+			{Type: "Match", Payload: "", Proxy: "DIRECT"},
+			{Type: "DomainKeyword", Payload: "github", Proxy: "Auto"},
+			{Type: "GeoIP", Payload: "CN", Proxy: "DIRECT"},
+			{Type: "IPCIDR", Payload: "10.0.0.0/8", Proxy: "REJECT"},
+			{Type: "ProcessName", Payload: "Safari", Proxy: "Proxy"},
+			{Type: "DomainSuffix", Payload: "youtube.com", Proxy: "Proxy"},
+		},
+		Providers: []rules.Provider{
+			{Name: "google", Vehicle: "HTTP", Behavior: "domain", Count: 20, UpdatedAt: "3 小时前"},
+			{Name: "local", Vehicle: "File", Behavior: "classical", Count: 4, UpdatedAt: "1 天前"},
+		},
+	}
+	m.Logs = LogView{
+		Level: "all",
+		Lines: []clashlog.Line{
+			{Time: now, Level: "info", Payload: "[TCP] 127.0.0.1:52311 --> www.google.com:443"},
+			{Time: now.Add(time.Second), Level: "info", Payload: "info two"},
+			{Time: now.Add(2 * time.Second), Level: "info", Payload: "info three"},
+			{Time: now.Add(3 * time.Second), Level: "warning", Payload: "slow dns"},
+			{Time: now.Add(4 * time.Second), Level: "error", Payload: "dial failed"},
+			{Time: now.Add(5 * time.Second), Level: "debug", Payload: "trace"},
+		},
+	}
 }
 
 // CollapseSidebar is the collapsed navigation shared by the

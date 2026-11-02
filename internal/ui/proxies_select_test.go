@@ -16,10 +16,10 @@ import (
 // Clicking another node in a Selector group changes the selected row: the
 // group's Now, the home node, the ✓ mark, and the 3px bar.
 //
-// The click does not update mihomo. nodeRow only writes the model, and
-// core.Core has no Select method. The external controller also stays down
-// under -race, which is how CI runs, so a PUT /proxies/{group} assertion
-// cannot ride along in this test.
+// This view test leaves Hooks.SelectProxy nil. The kernel write is
+// TestSelectWritesSelector: it calls core.Core.Select and reads Now()
+// from tunnel.Proxies, because CI's -race build does not listen on the
+// external controller.
 func TestProxiesSelectNode(t *testing.T) {
 	if PageTitleSize != 20 {
 		t.Fatalf("PageTitleSize %v, want 20", PageTitleSize)

@@ -17,7 +17,7 @@ geo-auto-update: false
 external-controller: 127.0.0.1:9097
 secret: ""
 profile:
-  store-selected: false
+  store-selected: true
 tun:
   enable: false
 dns:

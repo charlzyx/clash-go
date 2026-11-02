@@ -87,11 +87,8 @@ func spacedPair(s string) string {
 // ui.NewTester.Find returns the first match, and 「›」 is repeated, so the
 // boxes come from the tester's label list (mygo v0.7.4).
 //
-// Plain text trails still sit flush against the chevron: 「7897›」 on
-// 端口设置, and 「?›」 on 备份设置, 配置目录, and 轻量模式设置. That is
-// the #9 report. Fixing the rows is product UI, so those gaps skip.
-// Padded trails (CORS, 齿轮) already keep a gap and still fail the test
-// if they lose it.
+// Plain trails (端口设置 「7897」, and 「?」 on 备份设置, 配置目录, and
+// 轻量模式设置) use the same gap as padded ones (CORS, 齿轮).
 func TestSettingsValueSpaceChevron(t *testing.T) {
 	tt := settingsFrame(t)
 	trails := chevronTrails(t, tt)
@@ -113,7 +110,6 @@ func TestSettingsValueSpaceChevron(t *testing.T) {
 	}
 
 	const space float32 = 4 // about one space at the 13px value size
-	var known []string
 	var other []string
 	sawPort := false
 	for _, tr := range trails {
@@ -135,11 +131,6 @@ func TestSettingsValueSpaceChevron(t *testing.T) {
 		if gap >= space {
 			continue
 		}
-		// Plain text is drawn as value›. Padded buttons (CORS, 齿轮) are not.
-		if tr.text == "7897" || tr.text == "?" {
-			known = append(known, tr.text)
-			continue
-		}
 		other = append(other, tr.text)
 	}
 	if len(other) > 0 {
@@ -147,9 +138,6 @@ func TestSettingsValueSpaceChevron(t *testing.T) {
 	}
 	if !sawPort {
 		t.Fatal("端口设置 value 7897 was not measured")
-	}
-	if len(known) > 0 {
-		t.Skipf("Refs #9: plain settings trails still sit flush against › (%v): 端口设置 is 7897›, and 备份设置 / 配置目录 / 轻量模式设置 are ?›. CORS and 齿轮 keep a gap. Fixing the rows is out of scope for this test-only change", known)
 	}
 }
 

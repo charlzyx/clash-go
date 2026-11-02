@@ -23,6 +23,7 @@ func (a *App) Run() error {
 	var quitting bool
 	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) { quitting = true })
 	mygo.App.OnWillQuit(func(*mygo.QuitEvent) {
+		a.stopLive()
 		if a.tray != nil {
 			a.tray.Destroy()
 		}
@@ -47,6 +48,7 @@ func (a *App) ready(quitting *bool) {
 		UseContentSize: true,
 		Content:        mygoui.View(a.model.View),
 	})
+	a.startLive()
 	a.win.OnClose(func(e *mygo.CloseEvent) {
 		if quitting != nil && *quitting {
 			return

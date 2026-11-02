@@ -13,6 +13,8 @@ import (
 
 	"github.com/charlzyx/clash-go/internal/appconfig"
 	"github.com/charlzyx/clash-go/internal/appdir"
+	"github.com/charlzyx/clash-go/internal/clashlog"
+	"github.com/charlzyx/clash-go/internal/conn"
 	"github.com/charlzyx/clash-go/internal/core"
 	"github.com/charlzyx/clash-go/internal/profile"
 	"github.com/charlzyx/clash-go/internal/sysproxy"
@@ -50,6 +52,11 @@ type App struct {
 
 	win  *mygo.Window
 	tray *mygo.Tray
+
+	connTrack conn.Tracker
+	logs      *clashlog.Buffer
+	stopLogs  func()
+	liveStop  chan struct{}
 }
 
 // New checks options and fills the M1 defaults. It does not start the
@@ -316,16 +323,88 @@ func (a *App) bindHooks() {
 		return
 	}
 	a.model.Hooks = ui.Hooks{
-		SetSystemProxy: a.SetSystemProxy,
-		SetTUN:         a.SetTUN,
-		SetMode:        a.SetMode,
-		ImportURL:      a.ImportURL,
-		SavePrefs:      a.savePrefs,
-		OpenDir:        a.openDir,
-		RestartCore:    a.restartCore,
-		Copy:           writeClipboard,
-		Quit:           func() { mygo.App.Quit() },
+		SetSystemProxy:      a.SetSystemProxy,
+		SetTUN:              a.SetTUN,
+		SetMode:             a.SetMode,
+		SelectProxy:         a.SelectProxy,
+		CloseConnection:     a.closeConnection,
+		CloseAllConnections: a.closeAllConnections,
+		ClearClosed:         func() { a.connTrack.ClearClosed() },
+		RefreshRules:        a.refreshRules,
+		UpdateRuleProvider:  a.updateRuleProvider,
+		SetLogPaused: func(on bool) {
+			if a.logs != nil {
+				a.logs.SetPaused(on)
+			}
+		},
+		ClearLogs: func() {
+			if a.logs != nil {
+				a.logs.Clear()
+			}
+		},
+		ImportURL:   a.ImportURL,
+		SavePrefs:   a.savePrefs,
+		OpenDir:     a.openDir,
+		RestartCore: a.restartCore,
+		Copy:        writeClipboard,
+		Quit:        func() { mygo.App.Quit() },
 	}
+}
+
+// SelectProxy writes the choice into mihomo's selector when the kernel is
+// running, then remembers it on the current subscription. A profile write
+// failure does not undo a selector that already changed. A selector error
+// is returned so the UI can revert.
+func (a *App) SelectProxy(group, node string) error {
+	if a == nil {
+		return nil
+	}
+	if a.core != nil && a.core.Status().Running {
+		if err := a.core.Select(group, node); err != nil {
+			return err
+		}
+	}
+	a.applyProxySelection(group, node)
+	if err := a.persistSelection(group, node); err != nil && a.model != nil {
+		a.model.Notice = err.Error()
+	}
+	return nil
+}
+
+func (a *App) applyProxySelection(group, node string) {
+	if a == nil || a.model == nil {
+		return
+	}
+	for i := range a.model.Groups {
+		g := &a.model.Groups[i]
+		if g.Name != group {
+			continue
+		}
+		g.Now = node
+		if a.model.Home.Node.Group == group || a.model.Home.Node.Group == "" {
+			a.model.Home.Node.Name = node
+			a.model.Home.Node.Group = group
+			for _, n := range g.Nodes {
+				if n.Name == node {
+					a.model.Home.Node.Type = n.Type
+					a.model.Home.Node.Delay = n.Delay
+				}
+			}
+		}
+	}
+	if a.win != nil {
+		a.win.Invalidate()
+	}
+	if a.tray != nil {
+		a.tray.SetMenu(BuildTrayMenu(a.traySnapshot(), a.trayActions()))
+	}
+}
+
+func (a *App) persistSelection(group, node string) error {
+	if a == nil || a.profiles == nil || a.model == nil || a.model.CurrentProfile == "" {
+		return nil
+	}
+	return a.profiles.RecordSelected(a.model.CurrentProfile, group, node)
 }
 
 // SetMode writes the profile mode and reloads the kernel when it is running.
