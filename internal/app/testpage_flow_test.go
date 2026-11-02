@@ -12,11 +12,19 @@ import (
 	"github.com/charlzyx/clash-go/internal/sitetest"
 )
 
-// TestTestPageProbePersists drives /test against a local server.
-// Default tiles are the four first-run sites. A click measures that server
-// with ProbeURL. Add, edit, and delete are read back from a new tests store.
-// The kernel is not started.
-func TestTestPageProbePersists(t *testing.T) {
+// TestHomeTestCardProbePersists locks Verge's home TestCard, not the
+// sidebar unlock page.
+//
+// Verge's sidebar 「测试」 is /unlock (outlines/unlock.md): 13 cards and
+// 「测试全部」. The four default sites, the latency text, and the timeout
+// notice exercised here are the home TestCard. They currently render on
+// /test. M5 will turn /test into that unlock page. The /test route and
+// its end-to-end cases then have to be rewritten for unlock, and these
+// TestCard assertions move onto the home page.
+//
+// The kernel is not started. The timeout subtest is
+// TestHomeTestCardProbePersists/timeout.
+func TestHomeTestCardProbePersists(t *testing.T) {
 	hold := make(chan struct{})
 	defer close(hold)
 	var mode string
@@ -96,7 +104,7 @@ func TestTestPageProbePersists(t *testing.T) {
 			return
 		}
 		if strings.Contains(m.Notice, "检测失败") {
-			t.Skipf("a timed-out probe is shown as %q, not 检测超时或失败. The tile returns to 测试 (delay %d)", m.Notice, m.Sites[local].Delay)
+			t.Skipf("TestCard timed-out probe is shown as %q, not 检测超时或失败. The tile returns to 测试 (delay %d)", m.Notice, m.Sites[local].Delay)
 		}
 		t.Fatalf("timeout notice %q delay %d", m.Notice, m.Sites[local].Delay)
 	})
