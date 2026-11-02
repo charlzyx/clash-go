@@ -119,6 +119,12 @@ func NewCollapsedTester(m *Model, dark bool) *mygoui.Tester {
 	return renderModel(CollapseSidebar(m), WindowWidth, WindowHeight, dark)
 }
 
+// NewPageTester draws m at the default window size with ui.NewTester.
+// No window is opened. It is the same frame renderModel uses for screenshots.
+func NewPageTester(m *Model) *mygoui.Tester {
+	return renderModel(m, WindowWidth, WindowHeight, false)
+}
+
 // renderModel draws the model once the way the screenshot test does.
 func renderModel(m *Model, width, height int, dark bool) *mygoui.Tester {
 	if width <= 0 {
