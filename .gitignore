@@ -1,0 +1,6 @@
+/build/
+/.mygo/
+/screenshots/
+coverage.out
+*.out
+.DS_Store

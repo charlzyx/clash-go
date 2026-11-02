@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: test
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        env:
+          CLASHGO_SCREENSHOT_DIR: ${{ github.workspace }}/screenshots
+        run: |
+          mkdir -p screenshots
+          go test -race -count=1 -covermode=atomic -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out | tail -n 1
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.out
+          if-no-files-found: warn
+
+      - name: Upload window screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: window-screenshots
+          path: screenshots/*.png
+          if-no-files-found: warn
