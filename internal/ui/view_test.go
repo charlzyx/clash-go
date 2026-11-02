@@ -11,6 +11,11 @@ import (
 	mygoui "github.com/egoist/mygo/ui"
 )
 
+// P0 ui.NewTester cases for ProfilesView and ProxiesView are deferred.
+// docs/test/priority.md asks for an import field, a proxy row click, and a
+// delay result. /proxies and /profile still render PlaceholderPage, so those
+// interactions do not exist yet and this package does not invent the views.
+
 func demoHome() HomeState {
 	return HomeState{
 		Version:     "1.19.33",
