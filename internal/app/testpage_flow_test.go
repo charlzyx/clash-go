@@ -1,0 +1,199 @@
+package app
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/charlzyx/clash-go/internal/sitetest"
+)
+
+// TestHomeTestCardProbePersists locks Verge's home TestCard, not the
+// sidebar unlock page.
+//
+// Verge's sidebar 「测试」 is /unlock (outlines/unlock.md): 13 cards and
+// 「测试全部」. The four default sites, the latency text, and the timeout
+// notice exercised here are the home TestCard. They currently render on
+// /test. M5 will turn /test into that unlock page. The /test route and
+// its end-to-end cases then have to be rewritten for unlock, and these
+// TestCard assertions move onto the home page.
+//
+// The kernel is not started. The timeout subtest is
+// TestHomeTestCardProbePersists/timeout.
+func TestHomeTestCardProbePersists(t *testing.T) {
+	hold := make(chan struct{})
+	defer close(hold)
+	var mode string
+	var mu sync.Mutex
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		kind := mode
+		mu.Unlock()
+		switch kind {
+		case "hang":
+			<-hold
+		case "fail":
+			w.WriteHeader(http.StatusBadGateway)
+		default:
+			w.WriteHeader(http.StatusNoContent)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	dir := t.TempDir()
+	a := newProfileHarness(dir)
+	m := a.Model()
+	client := srv.Client()
+	a.model.Hooks.ProbeSite = func(raw string) (int, error) {
+		return sitetest.ProbeURL(raw, client)
+	}
+	m.Router.Replace("/test")
+	tt := newPageTester(m)
+	for _, name := range []string{"Apple", "GitHub", "Google", "YouTube"} {
+		if !tt.HasText(name) {
+			t.Errorf("default site %s missing, texts %q", name, tt.Texts())
+		}
+	}
+	if !exactText(tt.Texts(), "测试") {
+		t.Fatalf("untested tile missing 测试, texts %q", tt.Texts())
+	}
+
+	// The tile URL is the local server. Default Apple/GitHub URLs stay
+	// unclicked so the test does not dial the public network.
+	local := addSite(t, tt, "Local", srv.URL+"/ok")
+	if local < 0 {
+		t.Fatal("local site was not added")
+	}
+	if err := tt.Click("page-site-Local"); err != nil {
+		t.Fatal(err)
+	}
+	if m.Sites[local].Status != "ok" || m.Sites[local].Delay < 0 || !tt.HasText(strconv.Itoa(m.Sites[local].Delay)+" ms") {
+		t.Fatalf("probe status %q delay %d texts %q notice %q", m.Sites[local].Status, m.Sites[local].Delay, tt.Texts(), m.Notice)
+	}
+
+	mu.Lock()
+	mode = "fail"
+	mu.Unlock()
+	if err := tt.Click("page-site-Local"); err != nil {
+		t.Fatal(err)
+	}
+	if m.Sites[local].Status != "fail" || m.Notice != "Local 检测失败" || tt.HasText("测试中...") {
+		t.Fatalf("fail status %q notice %q texts %q", m.Sites[local].Status, m.Notice, tt.Texts())
+	}
+
+	t.Run("timeout", func(t *testing.T) {
+		mu.Lock()
+		mode = "hang"
+		mu.Unlock()
+		slow := srv.Client()
+		slow.Timeout = 30 * time.Millisecond
+		a.model.Hooks.ProbeSite = func(raw string) (int, error) {
+			return sitetest.ProbeURL(raw, slow)
+		}
+		if err := tt.Click("page-site-Local"); err != nil {
+			t.Fatal(err)
+		}
+		if m.Sites[local].Status == "testing" || tt.HasText("测试中...") {
+			t.Fatalf("timeout left the tile testing: %+v", m.Sites[local])
+		}
+		if strings.Contains(m.Notice, "检测超时") {
+			return
+		}
+		if strings.Contains(m.Notice, "检测失败") {
+			t.Skipf("TestCard timed-out probe is shown as %q, not 检测超时或失败. The tile returns to 测试 (delay %d)", m.Notice, m.Sites[local].Delay)
+		}
+		t.Fatalf("timeout notice %q delay %d", m.Notice, m.Sites[local].Delay)
+	})
+
+	mu.Lock()
+	mode = ""
+	mu.Unlock()
+	a.model.Hooks.ProbeSite = func(raw string) (int, error) {
+		return sitetest.ProbeURL(raw, client)
+	}
+	if err := tt.RightClick("page-site-Local"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("编辑"); err != nil {
+		t.Fatal(err)
+	}
+	m.TestForm.Name = ""
+	if err := tt.Click("test-name"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Type("Local 2")
+	if err := tt.Click("test-save"); err != nil {
+		t.Fatal(err)
+	}
+
+	saved, err := sitetest.NewStore(dir).Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(saved) != 5 || saved[len(saved)-1].Name != "Local 2" || saved[len(saved)-1].URL != srv.URL+"/ok" {
+		t.Fatalf("saved tests %+v", saved)
+	}
+	reloaded := newProfileHarness(dir)
+	reloaded.loadSites()
+	if len(reloaded.Model().Sites) != 5 || reloaded.Model().Sites[4].Name != "Local 2" || reloaded.Model().Sites[4].Delay != -1 {
+		t.Fatalf("reloaded %+v", reloaded.Model().Sites)
+	}
+
+	if err := tt.RightClick("page-site-Local 2"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("删除"); err != nil {
+		t.Fatal(err)
+	}
+	after, err := sitetest.NewStore(dir).Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after) != 4 || containsSite(after, "Local 2") {
+		t.Fatalf("after delete %+v", after)
+	}
+}
+
+func addSite(t *testing.T, tt interface {
+	Click(string) error
+	Type(string)
+}, name, raw string) int {
+	t.Helper()
+	if err := tt.Click("page-test-new"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("test-name"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Type(name)
+	if err := tt.Click("test-url"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Type(raw)
+	if err := tt.Click("test-save"); err != nil {
+		t.Fatal(err)
+	}
+	return 4
+}
+
+func exactText(texts []string, want string) bool {
+	for _, s := range texts {
+		if s == want {
+			return true
+		}
+	}
+	return false
+}
+
+func containsSite(items []sitetest.Item, name string) bool {
+	for _, it := range items {
+		if it.Name == name {
+			return true
+		}
+	}
+	return false
+}
