@@ -264,6 +264,10 @@ type Prefs struct {
 	HotkeyTUN      string
 	HotkeyLite     string
 	HotkeyProfiles string
+	// UnlockResults 是测试页结果缓存，对应 Verge 的
+	// localStorage['clash_verge_unlock_results']。跟设置页一起放进
+	// settings.json 的 prefs，不再另开一份存储。
+	UnlockResults []UnlockItem `json:"clash_verge_unlock_results,omitempty"`
 }
 
 // DefaultPrefs matches the settings spec defaults the page must show.

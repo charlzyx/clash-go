@@ -21,6 +21,7 @@ var navIcons = map[string]*mygoui.SVG{
 	"rules":         mustNav(navFork),
 	"logs":          mustNav(navSubject),
 	"test":          mustNav(navLock),
+	"unlock":        mustNav(navLock),
 	"settings":      mustNav(navSettings),
 }
 

@@ -81,5 +81,5 @@
 - [x] 连接：活跃/已关闭、列表与表格切换、关闭全部（`outlines/connections.md`）
 - [x] 规则：搜索 + provider + 虚拟列表（`outlines/rules.md`）
 - [x] 日志：暂停、倒序、级别、清空（`outlines/logs.md`）
-- [ ] 测试页：全部测试与 Yes/No/Risky 颜色（`outlines/unlock.md`）
+- [x] 测试页：全部测试与 Yes/No/Risky 颜色（`outlines/unlock.md`）
 - [ ] 托盘无「测试延迟」；模式、订阅、系统代理、TUN、退出都在（`outlines/tray.md`）
