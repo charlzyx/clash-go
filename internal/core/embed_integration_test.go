@@ -28,8 +28,8 @@ import (
 // globals. These tests must not call t.Parallel. The mutex also covers
 // `go test` without -p 1.
 //
-// P0 ui.NewTester cases for ProfilesView and ProxiesView are not here.
-// Those views are still PlaceholderPage; see internal/ui/view_test.go.
+// Window-free Profiles and Proxies clicks live in internal/ui and
+// internal/app. This file only boots the embedded core.
 //
 // Under -race the tests skip. Two M1 issues stack: startExternalController
 // does not listen, and hub.Parse calls log.SetLevel while mihomo finalizers
