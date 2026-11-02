@@ -5,6 +5,14 @@ on:
     branches: [main]
   pull_request:
 
+# issues: write — one comment on issue #14 per run
+# actions: write — setup-go module cache, and read the screenshot artifact id
+# contents: read — checkout
+permissions:
+  actions: write
+  contents: read
+  issues: write
+
 jobs:
   test:
     name: test
@@ -24,6 +32,7 @@ jobs:
         run: go build ./...
 
       - name: Test
+        id: test
         env:
           CLASHGO_SCREENSHOT_DIR: ${{ github.workspace }}/screenshots
         run: |
@@ -46,3 +55,27 @@ jobs:
           name: window-screenshots
           path: screenshots/*.png
           if-no-files-found: warn
+
+      # Issue #14 is the screenshot board. One comment per workflow run
+      # (a re-run updates that comment). Fork PRs cannot write issues, so
+      # this step does not run for them. Inline images need the
+      # user-attachments upload API; GITHUB_TOKEN is rejected there, and
+      # the script then lists PNG names and points at window-screenshots.
+      - name: Report to issue 14
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPORT_JOB_STATUS: ${{ job.status }}
+          REPORT_TEST_OUTCOME: ${{ steps.test.outcome }}
+          REPORT_EVENT_NAME: ${{ github.event_name }}
+          REPORT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          REPORT_BRANCH: ${{ github.head_ref || github.ref_name }}
+          REPORT_RUN_ID: ${{ github.run_id }}
+          REPORT_RUN_ATTEMPT: ${{ github.run_attempt }}
+          REPORT_SERVER_URL: ${{ github.server_url }}
+          REPORT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPORT_PR_URL: ${{ github.event.pull_request.html_url }}
+          REPORT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPORT_REPOSITORY: ${{ github.repository }}
+          SCREENSHOT_DIR: ${{ github.workspace }}/screenshots
+        run: bash .github/scripts/report-screenshot-issue.sh
