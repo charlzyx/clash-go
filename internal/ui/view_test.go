@@ -13,10 +13,9 @@ import (
 	mygoui "github.com/egoist/mygo/ui"
 )
 
-// P0 ui.NewTester cases for ProfilesView and ProxiesView are deferred.
-// docs/test/priority.md asks for an import field, a proxy row click, and a
-// delay result. /proxies and /profile still render PlaceholderPage, so those
-// interactions do not exist yet and this package does not invent the views.
+// Window-free page locks live in sidebar_logo_test.go, proxies_select_test.go,
+// and text_lock_test.go. Importing a subscription and reloading the profile
+// store is internal/app/profile_import_test.go.
 
 func demoHome() HomeState {
 	return HomeState{
