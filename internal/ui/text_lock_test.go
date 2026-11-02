@@ -16,8 +16,8 @@ func TestTwoRuneButtonsHaveNoInsertedSpace(t *testing.T) {
 	buttons := []string{
 		"首页", "代理", "订阅", "连接", "规则", "日志", "测试", "设置",
 		"轻量", "手册", "测速", "导入", "新建", "粘贴", "清除", "批量",
-		"更新", "配置", "激活", "刷新", "全局", "直连", "定位", "网卡",
-		"齿轮", "复制", "浏览", "浅色", "深色", "系统",
+		"更新", "配置", "激活", "刷新", "全局", "直连", "定位",
+		"复制", "浏览", "浅色", "深色", "系统",
 	}
 	frames := []*mygoui.Tester{
 		renderModel(DemoModel(), WindowWidth, WindowHeight, false),
@@ -92,14 +92,14 @@ func spacedPair(s string) string {
 func TestSettingsValueSpaceChevron(t *testing.T) {
 	tt := settingsFrame(t)
 	trails := chevronTrails(t, tt)
-	want := []string{"未安装", "7897", "CORS", "网页界面", "齿轮"}
+	want := []string{"未安装", "7897", "CORS", "网页界面", "core-gear"}
 	if runtime.GOOS == "windows" {
 		want = append(want, "UWP 工具")
 	}
 	want = append(want,
 		"更新 GeoData", "流量隧道管理",
 		"主题设置", "界面设置", "杂项设置", "热键设置",
-		"?", "当前配置", "?", "内核目录", "日志目录", "检查更新", "开发者工具", "?", "退出",
+		"help-backup", "当前配置", "help-conf", "内核目录", "日志目录", "检查更新", "开发者工具", "help-lite", "退出",
 	)
 	got := make([]string, len(trails))
 	for i, tr := range trails {

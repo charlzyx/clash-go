@@ -4,25 +4,19 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/charlzyx/clash-go/internal/sitetest"
+	"github.com/charlzyx/clash-go/internal/ui"
+
+	mygoui "github.com/egoist/mygo/ui"
 )
 
-// TestHomeTestCardProbePersists locks Verge's home TestCard, not the
-// sidebar unlock page.
-//
-// Verge's sidebar 「测试」 is /unlock (outlines/unlock.md): 13 cards and
-// 「测试全部」. The four default sites, the latency text, and the timeout
-// notice exercised here are the home TestCard. They currently render on
-// /test. M5 will turn /test into that unlock page. The /test route and
-// its end-to-end cases then have to be rewritten for unlock, and these
-// TestCard assertions move onto the home page.
-//
-// The kernel is not started. The timeout subtest is
+// TestHomeTestCardProbePersists locks Verge's home TestCard.
+// The sidebar 「测试」 route is /unlock. These assertions stay on the home
+// page. The kernel is not started. The timeout subtest is
 // TestHomeTestCardProbePersists/timeout.
 func TestHomeTestCardProbePersists(t *testing.T) {
 	hold := make(chan struct{})
@@ -51,8 +45,11 @@ func TestHomeTestCardProbePersists(t *testing.T) {
 	a.model.Hooks.ProbeSite = func(raw string) (int, error) {
 		return sitetest.ProbeURL(raw, client)
 	}
-	m.Router.Replace("/test")
-	tt := newPageTester(m)
+	tt := mygoui.NewTester(m.View, ui.WindowWidth, 1600)
+	tt.SetScale(1)
+	for i := 0; i < 5 && tt.FramePending(); i++ {
+		tt.Advance(time.Second)
+	}
 	for _, name := range []string{"Apple", "GitHub", "Google", "YouTube"} {
 		if !tt.HasText(name) {
 			t.Errorf("default site %s missing, texts %q", name, tt.Texts())
@@ -68,7 +65,7 @@ func TestHomeTestCardProbePersists(t *testing.T) {
 	if local < 0 {
 		t.Fatal("local site was not added")
 	}
-	if err := tt.Click("page-site-Local"); err != nil {
+	if err := tt.Click("site-Local"); err != nil {
 		t.Fatal(err)
 	}
 	if m.Sites[local].Status != "ok" || m.Sites[local].Delay < 0 || !tt.HasText(strconv.Itoa(m.Sites[local].Delay)+" ms") {
@@ -78,7 +75,7 @@ func TestHomeTestCardProbePersists(t *testing.T) {
 	mu.Lock()
 	mode = "fail"
 	mu.Unlock()
-	if err := tt.Click("page-site-Local"); err != nil {
+	if err := tt.Click("site-Local"); err != nil {
 		t.Fatal(err)
 	}
 	if m.Sites[local].Status != "fail" || m.Notice != "Local 检测失败" || tt.HasText("测试中...") {
@@ -94,19 +91,15 @@ func TestHomeTestCardProbePersists(t *testing.T) {
 		a.model.Hooks.ProbeSite = func(raw string) (int, error) {
 			return sitetest.ProbeURL(raw, slow)
 		}
-		if err := tt.Click("page-site-Local"); err != nil {
+		if err := tt.Click("site-Local"); err != nil {
 			t.Fatal(err)
 		}
 		if m.Sites[local].Status == "testing" || tt.HasText("测试中...") {
 			t.Fatalf("timeout left the tile testing: %+v", m.Sites[local])
 		}
-		if strings.Contains(m.Notice, "检测超时") {
-			return
+		if m.Notice != "检测超时或失败" || m.Sites[local].Delay == -2 || m.Sites[local].Status == "testing" {
+			t.Fatalf("timeout notice %q delay %d status %q", m.Notice, m.Sites[local].Delay, m.Sites[local].Status)
 		}
-		if strings.Contains(m.Notice, "检测失败") {
-			t.Skipf("TestCard timed-out probe is shown as %q, not 检测超时或失败. The tile returns to 测试 (delay %d)", m.Notice, m.Sites[local].Delay)
-		}
-		t.Fatalf("timeout notice %q delay %d", m.Notice, m.Sites[local].Delay)
 	})
 
 	mu.Lock()
@@ -115,7 +108,7 @@ func TestHomeTestCardProbePersists(t *testing.T) {
 	a.model.Hooks.ProbeSite = func(raw string) (int, error) {
 		return sitetest.ProbeURL(raw, client)
 	}
-	if err := tt.RightClick("page-site-Local"); err != nil {
+	if err := tt.RightClick("site-Local"); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.ChooseMenuItem("编辑"); err != nil {
@@ -143,7 +136,7 @@ func TestHomeTestCardProbePersists(t *testing.T) {
 		t.Fatalf("reloaded %+v", reloaded.Model().Sites)
 	}
 
-	if err := tt.RightClick("page-site-Local 2"); err != nil {
+	if err := tt.RightClick("site-Local 2"); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.ChooseMenuItem("删除"); err != nil {
@@ -163,7 +156,7 @@ func addSite(t *testing.T, tt interface {
 	Type(string)
 }, name, raw string) int {
 	t.Helper()
-	if err := tt.Click("page-test-new"); err != nil {
+	if err := tt.Click("test-new"); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.Click("test-name"); err != nil {

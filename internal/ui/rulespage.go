@@ -31,7 +31,7 @@ func (m *Model) rulesPage(c *mygoui.Context, pal Palette) {
 		if len(m.Rules.Providers) == 0 {
 			return
 		}
-		if textButton(c, pal, "规则集合", "规则集合", "rule-providers") {
+		if iconButton(c, pal, iconRules, "规则集合", "rule-providers") {
 			m.Rules.Open = true
 		}
 	}, func() {

@@ -123,7 +123,7 @@ func (m *Model) connTools(c *mygoui.Context, pal Palette, hasRows bool) {
 		}
 		searchBox(c, pal, &m.Conns.Query, "conn")
 		if m.Conns.Layout != "list" && hasRows {
-			if textButton(c, pal, "列", "列设置", "conn-columns") {
+			if iconButton(c, pal, iconCols, "列设置", "conn-columns") {
 				m.Conns.ColsOpen = true
 			}
 		}

@@ -25,8 +25,8 @@ func TestConnectionsTableAndClose(t *testing.T) {
 	if !tt.HasText("空空如也") {
 		t.Fatalf("empty connections missing 空空如也: %q", tt.Texts())
 	}
-	if hasExactText(tt, "列") {
-		t.Fatal("empty table showed the column button")
+	if _, ok := tt.Find("conn-columns"); ok {
+		t.Fatal("empty table showed the column icon")
 	}
 	if tt.HasText("默认") {
 		t.Fatal("table layout showed the list sort menu")
@@ -56,6 +56,12 @@ func TestConnectionsTableAndClose(t *testing.T) {
 	}
 	if tt.HasText("1.00KB") {
 		t.Fatal("cell traffic dropped the space")
+	}
+	cols, okCols := tt.Find("conn-columns")
+	search, okSearch := tt.Find("conn-search")
+	matchCase, okCase := tt.Find("conn-case")
+	if !okCols || !okSearch || !okCase || cols.X <= search.X || matchCase.X <= search.X || matchCase.X >= cols.X || !overlapsY(cols.Y, cols.H, search.Y, search.H) {
+		t.Fatalf("column icon %v search %v case %v", cols, search, matchCase)
 	}
 	if err := tt.Click("col-host"); err != nil {
 		t.Fatal(err)
@@ -124,8 +130,11 @@ func TestRulesPageAndUpdateAll(t *testing.T) {
 	m := NewModel(demoHome())
 	m.Router.Replace("/rules")
 	tt := renderModel(m, WindowWidth, WindowHeight, false)
-	if !tt.HasText("空空如也") || tt.HasText("规则集合") {
-		t.Fatal("empty rules should hide the provider button")
+	if !tt.HasText("空空如也") {
+		t.Fatal("empty rules")
+	}
+	if _, ok := tt.Find("rule-providers"); ok {
+		t.Fatal("empty rules should hide the provider icon")
 	}
 	m.Rules.Loaded = false
 	m.Rules.Items = []rules.Item{
@@ -135,7 +144,11 @@ func TestRulesPageAndUpdateAll(t *testing.T) {
 	}
 	m.Rules.Providers = []rules.Provider{{Name: "b", Count: 2, Vehicle: "HTTP", Behavior: "domain", UpdatedAt: "3 小时前"}, {Name: "a", Count: 1, Vehicle: "File", Behavior: "classical"}}
 	tt = renderModel(m, WindowWidth, WindowHeight, false)
-	if !tt.HasText("规则集合") || !tt.HasText("1") || !tt.HasText("google.com") || !tt.HasText("REJECT") || !tt.HasText("DIRECT") || !tt.HasText("Proxy") {
+	providers, okProviders := tt.Find("rule-providers")
+	if !okProviders || providers.Y > 58 || providers.X < sidebarExpandedWidth {
+		t.Fatalf("provider icon should sit in the page header, got %v", providers)
+	}
+	if !tt.HasText("1") || !tt.HasText("google.com") || !tt.HasText("REJECT") || !tt.HasText("DIRECT") || !tt.HasText("Proxy") {
 		t.Fatalf("rules texts %q", tt.Texts())
 	}
 	m.Rules.Query.Text = "google"
@@ -184,10 +197,20 @@ func TestLogsPageCaseAndLevels(t *testing.T) {
 		{Time: when.Add(2 * time.Second), Level: "error", Payload: "boom"},
 	}
 	tt := renderModel(m, WindowWidth, WindowHeight, false)
-	for _, label := range []string{"ALL", "暂停", "清除", "04-21 13:05:22", "INFO", "WARNING", "ERROR"} {
+	for _, label := range []string{"ALL", "清除", "04-21 13:05:22", "INFO", "WARNING", "ERROR"} {
 		if !tt.HasText(label) {
 			t.Errorf("logs missing %q", label)
 		}
+	}
+	pause, okPause := tt.Find("log-pause")
+	order, okOrder := tt.Find("log-order")
+	logSearch, okLogSearch := tt.Find("logs-search")
+	logCase, okLogCase := tt.Find("logs-case")
+	if !okPause || !okOrder || pause.Y > 58 || order.X <= pause.X || pause.X < sidebarExpandedWidth {
+		t.Fatalf("log icons pause %v order %v", pause, order)
+	}
+	if !okLogSearch || !okLogCase || logCase.X <= logSearch.X || !overlapsY(logCase.Y, logCase.H, logSearch.Y, logSearch.H) {
+		t.Fatalf("log search icons search %v case %v", logSearch, logCase)
 	}
 	if tt.HasText("SILENT") {
 		t.Fatal("log menu includes SILENT")
@@ -217,8 +240,11 @@ func TestLogsPageCaseAndLevels(t *testing.T) {
 	if err := tt.Click("log-pause"); err != nil {
 		t.Fatal(err)
 	}
-	if !paused || !m.Logs.Paused || !tt.HasText("继续") {
+	if !paused || !m.Logs.Paused {
 		t.Fatal("pause")
+	}
+	if _, ok := tt.Find("log-pause"); !ok {
+		t.Fatal("pause icon disappeared")
 	}
 	if err := tt.Click("log-order"); err != nil {
 		t.Fatal(err)

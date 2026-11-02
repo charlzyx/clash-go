@@ -184,6 +184,7 @@ func TestTUNToggleNeedsService(t *testing.T) {
 	}
 
 	m.Home.TUNAvailable = true
+	tt.Frame()
 	var got bool
 	m.Hooks.SetTUN = func(on bool) error {
 		got = on

@@ -53,6 +53,29 @@ func TestServiceModeDialog(t *testing.T) {
 	}
 }
 
+func TestSettingsIconsSitOnTheirRows(t *testing.T) {
+	m := DemoModel()
+	m.Home.TUNAvailable = false
+	m.Router.Replace("/settings")
+	tt := renderModel(m, WindowWidth, 1600, false)
+	tun, okTun := tt.Find("tun-row")
+	warn, okWarn := tt.Find("tun-warn")
+	gear, okGear := tt.Find("tun-gear")
+	if !okTun || !okWarn || !okGear || warn.X >= tun.X || gear.X >= tun.X || !overlapsY(warn.Y, warn.H, tun.Y, tun.H) || !overlapsY(gear.Y, gear.H, tun.Y, tun.H) {
+		t.Fatalf("tun row %v warn %v gear %v", tun, warn, gear)
+	}
+	help, okHelp := tt.Find("help-backup")
+	backup, okBackup := tt.Find("backup")
+	if !okHelp || !okBackup || help.X <= backup.X || !overlapsY(help.Y, help.H, backup.Y, backup.H) {
+		t.Fatalf("backup help %v row %v", help, backup)
+	}
+	coreGear, okCore := tt.Find("core-gear")
+	coreRow, okCoreRow := tt.Find("core-row")
+	if !okCore || !okCoreRow || coreGear.X <= coreRow.X || !overlapsY(coreGear.Y, coreGear.H, coreRow.Y, coreRow.H) {
+		t.Fatalf("core gear %v row %v", coreGear, coreRow)
+	}
+}
+
 func TestTunStackDefaultsToMips(t *testing.T) {
 	m := DemoModel()
 	m.Router.Replace("/settings")

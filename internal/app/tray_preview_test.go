@@ -27,7 +27,7 @@ func TestTrayMenuPreview(t *testing.T) {
 		for i := 0; i < 5 && tt.FramePending(); i++ {
 			tt.Advance(time.Second)
 		}
-		for _, label := range []string{"仪表板", "出站模式（规则）", "订阅", "系统代理", "虚拟网卡", "退出", "规则模式", "全局模式", "直连模式"} {
+		for _, label := range []string{"仪表板", "出站模式 (规则)", "订阅", "系统代理", "TUN 模式", "退出 ⌘Q", "规则模式", "全局模式", "直连模式"} {
 			if !tt.HasText(label) {
 				t.Errorf("%s menu missing %q", theme.name, label)
 			}
@@ -36,7 +36,7 @@ func TestTrayMenuPreview(t *testing.T) {
 			t.Fatalf("%s menu has a retired item: %q", theme.name, tt.Texts())
 		}
 		first, ok := tt.Find("仪表板")
-		modes, okM := tt.Find("出站模式（规则）")
+		modes, okM := tt.Find("出站模式 (规则)")
 		if !ok || !okM || first.Y >= modes.Y {
 			t.Fatalf("仪表板 should lead the menu, dash %v modes %v", first, modes)
 		}

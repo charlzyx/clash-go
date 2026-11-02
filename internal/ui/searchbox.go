@@ -15,24 +15,23 @@ func searchBox(c *mygoui.Context, pal Palette, q *query.Options, id string) {
 		} else {
 			field.Background(pal.Card)
 		}
-		searchToggle(c, pal, "Aa", "区分大小写", id+"-case", &q.MatchCase)
-		searchToggle(c, pal, "ab", "全字匹配", id+"-word", &q.Whole)
-		searchToggle(c, pal, ".*", "使用正则表达式", id+"-regex", &q.Regex)
+		searchToggle(c, pal, iconCase, "区分大小写", id+"-case", &q.MatchCase)
+		searchToggle(c, pal, iconWord, "全字匹配", id+"-word", &q.Whole)
+		searchToggle(c, pal, iconRegex, "使用正则表达式", id+"-regex", &q.Regex)
 		if q.Text != "" && textButton(c, pal, "×", "清空输入框", id+"-clear") {
 			q.Text = ""
 		}
 	})
 }
 
-func searchToggle(c *mygoui.Context, pal Palette, label, tip, id string, on *bool) {
-	b := mygoui.ButtonBase(c.Key(id)).Height(28).Padding(0, 6).Radius(4).Label(id)
+func searchToggle(c *mygoui.Context, pal Palette, svg *mygoui.SVG, tip, id string, on *bool) {
+	b := mygoui.ButtonBase(c.Key(id)).Size(28, 28).Radius(4).Label(id).Tooltip(tip)
 	if *on {
 		b.Background(pal.Primary.Alpha(0.15)).TextColor(pal.Primary)
 	} else {
 		b.Background(mygoui.Transparent).TextColor(pal.TextMuted)
 	}
-	b.Tooltip(tip)
-	b.Children(func() { mygoui.Text(c, label).FontSize(12) })
+	b.Children(func() { mygoui.Icon(c, svg).Size(16, 16) })
 	if b.Clicked() {
 		*on = !*on
 	}

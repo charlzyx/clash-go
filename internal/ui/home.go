@@ -260,7 +260,7 @@ func (m *Model) networkCard(c *mygoui.Context, pal Palette) mygoui.Element {
 		desc, tip := m.networkDesc()
 		mygoui.Row(c).Padding(8).Radius(4).AlignItems(mygoui.Center).Label("net-desc").Children(func() {
 			mygoui.Text(c, desc).FontSize(12).TextColor(pal.TextMuted).Grow(1)
-			helpMark(c, pal, tip)
+			helpMark(c, pal, "help-net", tip)
 		})
 		on := m.Home.SystemProxy
 		label := "系统代理"

@@ -831,17 +831,23 @@ func TestSettingsHelpMarksUseQuestion(t *testing.T) {
 	m := DemoModel()
 	m.Router.Replace("/settings")
 	tt := renderModel(m, WindowWidth, 1600, false)
-	if hasExactText(tt, "i") {
-		t.Fatal("settings still mixes an i mark with the question mark")
+	if hasExactText(tt, "?") || hasExactText(tt, "i") {
+		t.Fatal("help marks are icons, not ? or i text")
 	}
-	n := 0
-	for _, s := range tt.Texts() {
-		if s == "?" {
-			n++
+	marks := []struct{ id, row string }{
+		{"help-silent", "静默启动"},
+		{"help-dns", "DNS 覆写"},
+		{"help-unified", "统一延迟"},
+		{"help-backup", "备份设置"},
+		{"help-conf", "配置目录"},
+		{"help-lite", "轻量模式设置"},
+	}
+	for _, mark := range marks {
+		icon, ok := tt.Find(mark.id)
+		row, okRow := tt.Find(mark.row)
+		if !ok || !okRow || icon.X <= row.X || !overlapsY(icon.Y, icon.H, row.Y, row.H) {
+			t.Fatalf("help %s icon %v row %s %v", mark.id, icon, mark.row, row)
 		}
-	}
-	if n < 5 {
-		t.Fatalf("help marks %d, want the silent, DNS, delay, backup, directory and lite rows", n)
 	}
 }
 
