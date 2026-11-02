@@ -31,6 +31,12 @@ type Hooks struct {
 	RefreshConnections func(now time.Time)
 	RefreshRules       func()
 	UpdateRuleProvider func(name string) error
+	// RefreshLogs pulls kernel log lines recorded since the previous
+	// call. The model drops them while clash log collection is paused.
+	RefreshLogs func()
+	// ClearLogs drops the kernel log buffer, the same role as Verge's
+	// refreshGetClashLog(true). The page also clears its own rows.
+	ClearLogs func()
 }
 
 // Model is the main window: a sidebar and the page it shows.
@@ -79,6 +85,10 @@ type Model struct {
 	ConnOrder        string
 	ConnQuery        string
 	ConnSearch       SearchOpts
+	ClashLog         ClashLog
+	Logs             []LogItem
+	LogQuery         string
+	LogSearch        SearchOpts
 	Notice           string
 	Busy             string
 	DNSAsk           bool
@@ -97,6 +107,10 @@ type Model struct {
 	connTable    mygoui.ListState
 	connScroll   mygoui.ScrollState
 	connSynced   time.Time
+
+	logList   mygoui.ListState
+	logSynced time.Time
+	logNext   uint64
 }
 
 type dialogSet struct {
@@ -135,6 +149,7 @@ func NewModel(home HomeState) *Model {
 		ShowNextUpdate: map[string]bool{},
 		connSelected:   -1,
 		PageVisible:    true,
+		ClashLog:       DefaultClashLog(),
 	}
 	m.normalize()
 	return m
@@ -166,6 +181,14 @@ func (m *Model) normalize() {
 	}
 	if m.connHidden == nil {
 		m.connHidden = map[string]bool{}
+	}
+	switch m.ClashLog.LogFilter {
+	case "all", "debug", "info", "warn", "err":
+	default:
+		m.ClashLog.LogFilter = "all"
+	}
+	if m.ClashLog.LogOrder != "desc" {
+		m.ClashLog.LogOrder = "asc"
 	}
 }
 
@@ -211,6 +234,9 @@ func (m *Model) View(c *mygoui.Context) {
 				case "/rules":
 					r.Title("规则")
 					m.rulesPage(c, pal)
+				case "/logs":
+					r.Title("日志")
+					m.logsPage(c, pal)
 				default:
 					page, ok := pageByPath(path)
 					if !ok {
