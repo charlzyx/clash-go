@@ -66,7 +66,7 @@ func BuildTrayMenu(s TraySnapshot, act TrayActions) *mygo.Menu {
 	}
 	var items []*mygo.MenuItem
 	items = append(items, &mygo.MenuItem{
-		ID: "dashboard", Label: "打开面板", Accelerator: "CmdOrCtrl+Shift+O",
+		ID: "dashboard", Label: "仪表板", Accelerator: "CmdOrCtrl+Shift+O",
 		Click: func(*mygo.MenuItem, *mygo.Window) {
 			if act.Show != nil {
 				act.Show()
