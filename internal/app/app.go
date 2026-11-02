@@ -316,16 +316,60 @@ func (a *App) bindHooks() {
 		return
 	}
 	a.model.Hooks = ui.Hooks{
-		SetSystemProxy: a.SetSystemProxy,
-		SetTUN:         a.SetTUN,
-		SetMode:        a.SetMode,
-		ImportURL:      a.ImportURL,
-		SavePrefs:      a.savePrefs,
-		OpenDir:        a.openDir,
-		RestartCore:    a.restartCore,
-		Copy:           writeClipboard,
-		Quit:           func() { mygo.App.Quit() },
+		SetSystemProxy:      a.SetSystemProxy,
+		SetTUN:              a.SetTUN,
+		SetMode:             a.SetMode,
+		ImportURL:           a.ImportURL,
+		SavePrefs:           a.savePrefs,
+		OpenDir:             a.openDir,
+		RestartCore:         a.restartCore,
+		Copy:                writeClipboard,
+		Quit:                func() { mygo.App.Quit() },
+		CloseAllConnections: a.closeAllConnections,
+		CloseConnection:     a.closeConnection,
+		RefreshConnections:  a.refreshConnections,
 	}
+}
+
+func (a *App) refreshConnections(now time.Time) {
+	if a.model == nil || a.core == nil {
+		return
+	}
+	up, down, items, ok := a.core.ConnectionSnapshot()
+	if !ok {
+		return
+	}
+	view := make([]ui.Connection, len(items))
+	for i, it := range items {
+		view[i] = ui.Connection{
+			ID: it.ID, Host: it.Host, DestinationIP: it.DestinationIP, DestPort: it.DestPort,
+			RemoteDest: it.RemoteDestination, Process: it.Process, ProcessPath: it.ProcessPath,
+			Network: it.Network, Type: it.Type, SourceIP: it.SourceIP, SourcePort: it.SourcePort,
+			Rule: it.Rule, RulePayload: it.RulePayload, Chains: it.Chains,
+			Upload: it.Upload, Download: it.Download, Start: it.Start,
+		}
+	}
+	a.model.ApplyConnections(view, up, down, now)
+}
+
+func (a *App) closeAllConnections() error {
+	if a.core != nil && a.core.Status().Running {
+		if err := a.core.CloseAllConnections(); err != nil {
+			return err
+		}
+	}
+	a.refreshConnections(time.Now())
+	return nil
+}
+
+func (a *App) closeConnection(id string) error {
+	if a.core != nil && a.core.Status().Running {
+		if err := a.core.CloseConnection(id); err != nil {
+			return err
+		}
+	}
+	a.refreshConnections(time.Now())
+	return nil
 }
 
 // SetMode writes the profile mode and reloads the kernel when it is running.

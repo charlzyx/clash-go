@@ -68,6 +68,32 @@ func DemoModel() *Model {
 	}
 	m.CurrentProfile = "p1"
 	m.Prefs.SystemProxy = true
+	m.ConnDown = 6 * 1024 * 1024 * 1024
+	m.ConnUp = 800 * 1024 * 1024
+	m.Active = []Connection{
+		{
+			ID: "c1", Host: "example.com", DestinationIP: "203.0.113.10", DestPort: 443,
+			Process: "Safari", ProcessPath: "/Applications/Safari.app", Network: "tcp", Type: "HTTPS",
+			SourceIP: "127.0.0.1", SourcePort: 52314, Rule: "DOMAIN-SUFFIX", RulePayload: "example.com",
+			Chains: []string{"DIRECT", "香港 01"}, Download: 6 << 20, Upload: 800 << 10,
+			DownloadSpeed: 240 << 10, UploadSpeed: 18 << 10,
+			Start: time.Now().Add(-2 * time.Minute),
+		},
+		{
+			ID: "c2", Host: "api.github.com", DestinationIP: "140.82.112.4", DestPort: 443,
+			Process: "curl", Network: "tcp", Type: "HTTPS",
+			SourceIP: "127.0.0.1", SourcePort: 52380, Rule: "DOMAIN", RulePayload: "api.github.com",
+			Chains: []string{"香港 01"}, Download: 12 << 10, Upload: 400,
+			Start: time.Now().Add(-30 * time.Second),
+		},
+	}
+	m.Closed = []Connection{
+		{
+			ID: "c3", Host: "old.example", DestPort: 80, Process: "curl", Network: "tcp", Type: "HTTP",
+			Rule: "MATCH", Chains: []string{"DIRECT"}, Download: 128, Upload: 64,
+			Start: time.Now().Add(-time.Hour), Closed: true,
+		},
+	}
 	return m
 }
 

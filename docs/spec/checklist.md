@@ -78,7 +78,7 @@
 
 - [ ] 窗口默认 940×700，最小 520×520（`outlines/layout.md`）
 - [ ] 侧栏八项顺序与收起 72px；品牌位展开 36×36 +「Clash Go」、收起 56×56 仅静态标记（`outlines/layout.md`，无 GIF）
-- [ ] 连接：活跃/已关闭、列表与表格切换、关闭全部（`outlines/connections.md`）
+- [x] 连接：活跃/已关闭、列表与表格切换、关闭全部（`outlines/connections.md`）
 - [ ] 规则：搜索 + provider + 虚拟列表（`outlines/rules.md`）
 - [ ] 日志：暂停、倒序、级别、清空（`outlines/logs.md`）
 - [ ] 测试页：全部测试与 Yes/No/Risky 颜色（`outlines/unlock.md`）
