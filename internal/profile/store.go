@@ -12,17 +12,17 @@ import (
 // CatalogItem is one subscription in profiles.json. It is not ImportHTTP's
 // Item: that type is the fetch result, this one is the saved index.
 type CatalogItem struct {
-	UID         string    `json:"uid"`
-	Name        string    `json:"name"`
-	Description string    `json:"desc,omitempty"`
-	URL         string    `json:"url,omitempty"`
-	Type        string    `json:"type"`
-	Home        string    `json:"home,omitempty"`
-	Updated     time.Time `json:"updated,omitempty"`
-	Used        int64     `json:"used,omitempty"`
-	Total       int64     `json:"total,omitempty"`
-	Expire      time.Time `json:"expire,omitempty"`
-	File        string    `json:"file,omitempty"`
+	UID         string        `json:"uid"`
+	Name        string        `json:"name"`
+	Description string        `json:"desc,omitempty"`
+	URL         string        `json:"url,omitempty"`
+	Type        string        `json:"type"`
+	Home        string        `json:"home,omitempty"`
+	Updated     time.Time     `json:"updated,omitempty"`
+	Used        int64         `json:"used,omitempty"`
+	Total       int64         `json:"total,omitempty"`
+	Expire      time.Time     `json:"expire,omitempty"`
+	File        string        `json:"file,omitempty"`
 	Option      CatalogOption `json:"option"`
 }
 
@@ -45,7 +45,7 @@ type CatalogOption struct {
 // File is profiles.json.
 type File struct {
 	Items   []CatalogItem `json:"items"`
-	Current string `json:"current"`
+	Current string        `json:"current"`
 }
 
 // Store loads and saves the profile list inside a config directory.

@@ -192,7 +192,7 @@ func (m *Model) sidebar(c *mygoui.Context, pal Palette) {
 	collapsed := m.Prefs.CollapseNav
 	mygoui.Column(c).Width(m.sidebarWidth()).FillHeight().Background(pal.Paper).
 		BorderWidth(0, 1, 0, 0).BorderColor(pal.Divider).Children(func() {
-		m.logoRow(c, collapsed)
+		m.logoRow(c, pal, collapsed)
 		mygoui.Column(c).Grow(1).Padding(8, 12).Gap(4).Children(func() {
 			for _, item := range Pages() {
 				on := page == item.Path
@@ -226,8 +226,9 @@ func (m *Model) sidebar(c *mygoui.Context, pal Palette) {
 	})
 }
 
-func (m *Model) logoRow(c *mygoui.Context, collapsed bool) {
+func (m *Model) logoRow(c *mygoui.Context, pal Palette, collapsed bool) {
 	if collapsed {
+		// Collapsed mark uses margin 0 and sits centered in the 56×56 logo area.
 		mygoui.Row(c).Height(logoCollapsedBox).AlignItems(mygoui.Center).Justify(mygoui.Center).Children(func() {
 			mygoui.Column(c).Size(logoCollapsedBox, logoCollapsedBox).AlignItems(mygoui.Center).Justify(mygoui.Center).Children(func() {
 				mygoui.Image(c, brandMark).Size(brandMarkSize, brandMarkSize).Label("mygo")
@@ -235,9 +236,14 @@ func (m *Model) logoRow(c *mygoui.Context, collapsed bool) {
 		})
 		return
 	}
-	mygoui.Row(c).Height(logoRowHeight).Padding(0, logoRowPaddingX).Gap(brandMarkMargin).AlignItems(mygoui.Center).Children(func() {
-		mygoui.Image(c, brandMark).Size(brandMarkSize, brandMarkSize).Shrink(0).Label("mygo")
-		mygoui.Text(c, "Clash Go").Bold().FontSize(16)
+	// Outer row is the sidebar logo slot. The inner row is Verge's 27px
+	// line: the 36px mark uses margin -3/-3/5 so it sits against 「Clash Go」.
+	mygoui.Row(c).Height(logoRowHeight).Padding(0, logoRowPaddingX).AlignItems(mygoui.Center).Children(func() {
+		mygoui.Row(c).Height(logoInnerHeight).AlignItems(mygoui.Center).Children(func() {
+			mygoui.Image(c, brandMark).Size(brandMarkSize, brandMarkSize).Shrink(0).
+				Margin(brandMarkNudge, brandMarkMargin, 0, brandMarkNudge).Label("mygo")
+			mygoui.Text(c, "Clash Go").Bold().FontSize(16).TextColor(pal.Text)
+		})
 	})
 }
 

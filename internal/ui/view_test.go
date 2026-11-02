@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bytes"
 	"image"
 	"image/png"
 	"os"
@@ -42,6 +43,16 @@ func TestHomeShowsKernelStatus(t *testing.T) {
 	}
 }
 
+func TestBrandAssetMatchesSpec(t *testing.T) {
+	spec, err := os.ReadFile("../../docs/spec/assets/brand/favicon.svg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(bytes.TrimSpace(spec), bytes.TrimSpace(mygoFaviconSVG)) {
+		t.Fatal("internal/ui/assets favicon drifted from docs/spec/assets/brand/favicon.svg")
+	}
+}
+
 func TestSidebarBrandMark(t *testing.T) {
 	m := NewModel(demoHome())
 	tt := renderModel(m, WindowWidth, WindowHeight, false)
@@ -56,8 +67,9 @@ func TestSidebarBrandMark(t *testing.T) {
 	if mark.W < 34 || mark.W > 38 || mark.H < 34 || mark.H > 38 {
 		t.Fatalf("icon size %v, want 36", mark)
 	}
-	if mark.X < 18 || mark.X > 22 {
-		t.Fatalf("logo padding %v, want 20", mark)
+	// 20px row padding plus the spec's margin-left of -3.
+	if mark.X < 15 || mark.X > 19 {
+		t.Fatalf("logo inset %v, want about 17", mark)
 	}
 	gap := name.X - (mark.X + mark.W)
 	if gap < 3 || gap > 8 {
