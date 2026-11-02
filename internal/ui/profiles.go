@@ -30,7 +30,7 @@ func (m *Model) profilePage(c *mygoui.Context, pal Palette) {
 		zone.Children(func() {
 			m.importRow(c, pal)
 			w, _ := c.Size()
-			cols := ProfileColumns(ContentWidth(w))
+			cols := ProfileColumns(contentWidth(w, m.sidebarWidth()))
 			mygoui.Grid(c).Columns(cols).Gap(8).Children(func() {
 				for i := range m.Profiles {
 					m.profileItem(c, pal, i)

@@ -53,10 +53,45 @@ func TestSidebarBrandMark(t *testing.T) {
 	if !ok || !nameOK {
 		t.Fatal("missing brand mark or name")
 	}
-	if mark.X >= name.X || mark.Y < 0 || mark.Y > 56 {
-		t.Fatalf("mark at %v, name at %v", mark, name)
+	if mark.W < 34 || mark.W > 38 || mark.H < 34 || mark.H > 38 {
+		t.Fatalf("icon size %v, want 36", mark)
 	}
-	img := tt.Image()
+	if mark.X < 18 || mark.X > 22 {
+		t.Fatalf("logo padding %v, want 20", mark)
+	}
+	gap := name.X - (mark.X + mark.W)
+	if gap < 3 || gap > 8 {
+		t.Fatalf("wordmark gap %v (mark %v name %v)", gap, mark, name)
+	}
+	if mark.Y < 0 || mark.Y+mark.H > logoRowHeight+1 {
+		t.Fatalf("icon outside the 58px logo row: %v", mark)
+	}
+	assertCyanMark(t, tt.Image(), mark)
+
+	m.Prefs.CollapseNav = true
+	ct := renderModel(m, WindowWidth, WindowHeight, false)
+	if ct.HasText("Clash Go") {
+		t.Fatal("collapsed sidebar still shows the wordmark")
+	}
+	collapsed, ok := ct.Find("mygo")
+	if !ok {
+		t.Fatal("collapsed sidebar lost the mark")
+	}
+	if collapsed.W < 34 || collapsed.W > 38 {
+		t.Fatalf("collapsed icon size %v", collapsed)
+	}
+	center := collapsed.X + collapsed.W/2
+	if center < sidebarCollapsedWidth/2-4 || center > sidebarCollapsedWidth/2+4 {
+		t.Fatalf("collapsed icon center %v, want the middle of the 72px sidebar", center)
+	}
+	if collapsed.Y < 0 || collapsed.Y+collapsed.H > logoCollapsedBox+1 {
+		t.Fatalf("collapsed icon outside the 56px logo area: %v", collapsed)
+	}
+	assertCyanMark(t, ct.Image(), collapsed)
+}
+
+func assertCyanMark(t *testing.T, img image.Image, mark mygoui.Rect) {
+	t.Helper()
 	cx := int(mark.X + mark.W/2)
 	cy := int(mark.Y + mark.H/2)
 	r, g, b, _ := img.At(cx, cy).RGBA()

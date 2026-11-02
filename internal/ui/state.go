@@ -206,6 +206,7 @@ type Prefs struct {
 	TrafficGraph   bool
 	MemoryUsage    bool
 	HoverNav       bool
+	CollapseNav    bool
 	GroupIcon      bool
 	PauseOnBlur    bool
 	AutoBackup     bool

@@ -234,7 +234,7 @@ func (m *Model) groupBlock(c *mygoui.Context, pal Palette, i int) {
 			m.groupEditor(c, pal, g)
 		}
 		w, _ := c.Size()
-		cols := ProxyColumns(ContentWidth(w), m.Prefs.ProxyColumns)
+		cols := ProxyColumns(contentWidth(w, m.sidebarWidth()), m.Prefs.ProxyColumns)
 		nodes := SortNodes(FilterNodes(g.Nodes, g.FilterApplied, SearchOpts{}, DelayTimeout), g.Sort, DelayTimeout)
 		if len(nodes) == 0 {
 			mygoui.Column(c).Padding(12).AlignItems(mygoui.Center).Children(func() {

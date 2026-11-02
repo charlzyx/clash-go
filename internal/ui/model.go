@@ -180,14 +180,19 @@ func (m *Model) flushFilters(now time.Time) {
 	}
 }
 
+func (m *Model) sidebarWidth() float32 {
+	if m != nil && m.Prefs.CollapseNav {
+		return sidebarCollapsedWidth
+	}
+	return sidebarExpandedWidth
+}
+
 func (m *Model) sidebar(c *mygoui.Context, pal Palette) {
 	page := m.Router.Path()
-	mygoui.Column(c).Width(200).FillHeight().Background(pal.Paper).
+	collapsed := m.Prefs.CollapseNav
+	mygoui.Column(c).Width(m.sidebarWidth()).FillHeight().Background(pal.Paper).
 		BorderWidth(0, 1, 0, 0).BorderColor(pal.Divider).Children(func() {
-		mygoui.Row(c).Height(56).Padding(0, 16).Gap(8).AlignItems(mygoui.Center).Children(func() {
-			mygoui.Image(c, brandMark).Size(brandMarkSize, brandMarkSize).Label("mygo")
-			mygoui.Text(c, "Clash Go").Bold().FontSize(16)
-		})
+		m.logoRow(c, collapsed)
 		mygoui.Column(c).Grow(1).Padding(8, 12).Gap(4).Children(func() {
 			for _, item := range Pages() {
 				on := page == item.Path
@@ -206,6 +211,9 @@ func (m *Model) sidebar(c *mygoui.Context, pal Palette) {
 				}
 			}
 		})
+		if collapsed {
+			return
+		}
 		mygoui.Row(c).Height(60).Padding(0, 16).Gap(12).AlignItems(mygoui.Center).
 			BorderWidth(1, 0, 0, 0).BorderColor(pal.Divider).Children(func() {
 			mygoui.Column(c).Gap(2).Children(func() {
@@ -215,6 +223,21 @@ func (m *Model) sidebar(c *mygoui.Context, pal Palette) {
 			mygoui.Spacer(c).Grow(1)
 			mygoui.Text(c, sidebarStatus(m.Home)).FontSize(11).TextColor(pal.TextMuted)
 		})
+	})
+}
+
+func (m *Model) logoRow(c *mygoui.Context, collapsed bool) {
+	if collapsed {
+		mygoui.Row(c).Height(logoCollapsedBox).AlignItems(mygoui.Center).Justify(mygoui.Center).Children(func() {
+			mygoui.Column(c).Size(logoCollapsedBox, logoCollapsedBox).AlignItems(mygoui.Center).Justify(mygoui.Center).Children(func() {
+				mygoui.Image(c, brandMark).Size(brandMarkSize, brandMarkSize).Label("mygo")
+			})
+		})
+		return
+	}
+	mygoui.Row(c).Height(logoRowHeight).Padding(0, logoRowPaddingX).Gap(brandMarkMargin).AlignItems(mygoui.Center).Children(func() {
+		mygoui.Image(c, brandMark).Size(brandMarkSize, brandMarkSize).Shrink(0).Label("mygo")
+		mygoui.Text(c, "Clash Go").Bold().FontSize(16)
 	})
 }
 

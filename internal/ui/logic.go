@@ -250,9 +250,13 @@ func ProxyColumns(bodyWidth float32, configured int) int {
 	}
 }
 
-// ContentWidth estimates the page body inside a 200px sidebar.
+// ContentWidth estimates the page body inside an expanded 200px sidebar.
 func ContentWidth(windowWidth float32) float32 {
-	w := windowWidth - 200
+	return contentWidth(windowWidth, sidebarExpandedWidth)
+}
+
+func contentWidth(windowWidth, sidebar float32) float32 {
+	w := windowWidth - sidebar
 	if w < 0 {
 		return 0
 	}

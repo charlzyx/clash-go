@@ -339,6 +339,7 @@ func (m *Model) layoutBody(c *mygoui.Context, pal Palette) {
 	m.boolLine(c, "代理组图标", &m.Prefs.GroupIcon)
 	m.boolLine(c, "失去焦点时暂停渲染流量统计", &m.Prefs.PauseOnBlur)
 	m.boolLine(c, "悬浮跳转导航", &m.Prefs.HoverNav)
+	m.boolLine(c, "收起导航栏", &m.Prefs.CollapseNav)
 	mygoui.Text(c, "悬浮跳转导航延迟").FontSize(13)
 	delay := itoa(m.Prefs.HoverDelay)
 	in := mygoui.TextInput(c, &delay).Width(120).Label("hover-delay")

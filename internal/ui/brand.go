@@ -14,5 +14,16 @@ var mygoFaviconSVG []byte
 // text color.
 var brandMark = mygoui.MustParseSVG(mygoFaviconSVG)
 
-// brandMarkSize is the sidebar title mark, next to the 16px app name.
-const brandMarkSize float32 = 22
+// Sidebar and logo slot, matching Clash Verge's layout-sidebar.
+const (
+	sidebarExpandedWidth  float32 = 200
+	sidebarCollapsedWidth float32 = 72
+	// Expanded logo row: ~58px tall, 20px horizontal padding.
+	logoRowHeight   float32 = 58
+	logoRowPaddingX float32 = 20
+	// The mark is 36×36 with 5px of room before the wordmark.
+	brandMarkSize   float32 = 36
+	brandMarkMargin float32 = 5
+	// Collapsed logo area is 56×56. The mark stays 36×36, centered, and the wordmark is hidden.
+	logoCollapsedBox float32 = 56
+)
