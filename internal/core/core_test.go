@@ -194,3 +194,17 @@ func waitListen(addr string) error {
 func ioWrite(w http.ResponseWriter, s string) (int, error) {
 	return w.Write([]byte(s))
 }
+
+func TestConnectionSnapshotWhileStopped(t *testing.T) {
+	c := New()
+	up, down, items, ok := c.ConnectionSnapshot()
+	if ok || up != 0 || down != 0 || items != nil {
+		t.Fatalf("stopped snapshot ok=%v up=%d down=%d items=%v", ok, up, down, items)
+	}
+	if err := c.CloseAllConnections(); err == nil {
+		t.Fatal("CloseAllConnections on a stopped core returned nil")
+	}
+	if err := c.CloseConnection("missing"); err == nil {
+		t.Fatal("CloseConnection on a stopped core returned nil")
+	}
+}

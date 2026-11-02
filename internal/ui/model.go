@@ -21,6 +21,14 @@ type Hooks struct {
 	Copy           func(text string)
 	Quit           func()
 	TestSite       func(url string) error
+	// CloseAllConnections closes every active connection. A non-nil
+	// error is kept off the page notice (Verge errorNotice: false).
+	CloseAllConnections func() error
+	// CloseConnection closes one active connection. Errors stay quiet.
+	CloseConnection func(id string) error
+	// RefreshConnections pulls a core snapshot into Active. now is the
+	// frame clock, used to derive per-connection speeds.
+	RefreshConnections func(now time.Time)
 }
 
 // Model is the main window: a sidebar and the page it shows.
@@ -52,6 +60,14 @@ type Model struct {
 	Form           ProfileForm
 	DeleteUID      string
 	Prefs          Prefs
+	Active         []Connection
+	Closed         []Connection
+	ConnUp         int64
+	ConnDown       int64
+	ConnLayout     string
+	ConnOrder      string
+	ConnQuery      string
+	ConnSearch     SearchOpts
 	Notice         string
 	Busy           string
 	DNSAsk         bool
@@ -59,6 +75,17 @@ type Model struct {
 	ForceTray      bool
 	Dialogs        dialogSet
 	Hooks          Hooks
+
+	connTab      int
+	connSelected int
+	connSort     mygoui.SortOrder
+	connDetailID string
+	connColsOpen bool
+	connHidden   map[string]bool
+	connList     mygoui.ListState
+	connTable    mygoui.ListState
+	connScroll   mygoui.ScrollState
+	connSynced   time.Time
 }
 
 type dialogSet struct {
@@ -94,6 +121,7 @@ func NewModel(home HomeState) *Model {
 		Prefs:          DefaultPrefs(),
 		IPLeft:         30,
 		ShowNextUpdate: map[string]bool{},
+		connSelected:   -1,
 	}
 	m.normalize()
 	return m
@@ -116,6 +144,15 @@ func (m *Model) normalize() {
 	}
 	if m.ShowNextUpdate == nil {
 		m.ShowNextUpdate = map[string]bool{}
+	}
+	if m.ConnLayout != "list" && m.ConnLayout != "table" {
+		m.ConnLayout = "list"
+	}
+	if m.ConnOrder != "uploadSpeed" && m.ConnOrder != "downloadSpeed" {
+		m.ConnOrder = "default"
+	}
+	if m.connHidden == nil {
+		m.connHidden = map[string]bool{}
 	}
 }
 
@@ -154,6 +191,9 @@ func (m *Model) View(c *mygoui.Context) {
 				case "/settings":
 					r.Title("设置")
 					m.settingsPage(c, pal)
+				case "/connections":
+					r.Title("连接")
+					m.connectionsPage(c, pal)
 				default:
 					page, ok := pageByPath(path)
 					if !ok {
