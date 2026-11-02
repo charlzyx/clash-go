@@ -10,6 +10,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/metacubex/mihomo/adapter/outboundgroup"
+	"github.com/metacubex/mihomo/tunnel"
 )
 
 // These tests drive mihomo's process-wide singleton. Do not call t.Parallel.
@@ -200,12 +203,10 @@ rules:
 	if err := c.Select("PROXY", "n2"); err != nil {
 		t.Fatal(err)
 	}
-	now, err := c.Selected("PROXY")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if now != "n2" {
-		t.Fatalf("selected %q, want n2", now)
+	// Read the in-process registry. CI runs with -race, where the external
+	// controller is not listening, so this must not go through HTTP.
+	if now := selectorNow(t, "PROXY"); now != "n2" {
+		t.Fatalf("kernel selector now %q, want n2", now)
 	}
 	if err := c.Select("PROXY", "missing"); err == nil {
 		t.Fatal("missing node was accepted")
@@ -213,6 +214,19 @@ rules:
 	if err := c.Select("DIRECT", "n1"); err == nil {
 		t.Fatal("DIRECT accepted a selector write")
 	}
+}
+
+func selectorNow(t *testing.T, group string) string {
+	t.Helper()
+	p, ok := tunnel.Proxies()[group]
+	if !ok || p == nil {
+		t.Fatalf("proxy group %s is not in the registry", group)
+	}
+	sel, ok := p.Adapter().(*outboundgroup.Selector)
+	if !ok || sel == nil {
+		t.Fatalf("%s adapter %T is not a selector", group, p.Adapter())
+	}
+	return sel.Now()
 }
 
 func TestReloadWhenStopped(t *testing.T) {

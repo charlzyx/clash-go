@@ -37,6 +37,23 @@ func TestTrayOrderHasNoDelayTest(t *testing.T) {
 	}
 }
 
+func TestTraySelectNode(t *testing.T) {
+	var group, node string
+	menu := BuildTrayMenu(TraySnapshot{
+		Groups: []TrayGroup{{Name: "PROXY", Now: "n1", Nodes: []string{"n1", "n2"}}},
+	}, TrayActions{SelectNode: func(g, n string) {
+		group, node = g, n
+	}})
+	item := menu.ItemByID("PROXY-n2")
+	if item == nil || item.Click == nil {
+		t.Fatal("missing PROXY-n2")
+	}
+	item.Click(item, nil)
+	if group != "PROXY" || node != "n2" {
+		t.Fatalf("tray select %s %s", group, node)
+	}
+}
+
 func TestTrayInlineModesAndHiddenProxies(t *testing.T) {
 	menu := BuildTrayMenu(TraySnapshot{Mode: "global", InlineModes: true, ProxyMenu: "disable"}, TrayActions{})
 	top := topLabels(menu.Items())

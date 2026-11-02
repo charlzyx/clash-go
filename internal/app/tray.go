@@ -298,6 +298,11 @@ func (a *App) trayActions() TrayActions {
 	return TrayActions{
 		Show:    a.showMain,
 		SetMode: func(mode string) { _ = a.SetMode(mode) },
+		SelectNode: func(group, node string) {
+			if err := a.SelectProxy(group, node); err != nil && a.model != nil {
+				a.model.Notice = err.Error()
+			}
+		},
 		SetProxy: func(on bool) {
 			if err := a.SetSystemProxy(on); err != nil && a.model != nil {
 				a.model.Notice = err.Error()

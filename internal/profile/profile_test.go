@@ -6,6 +6,33 @@ import (
 	"testing"
 )
 
+func TestRecordSelectedReplacesGroup(t *testing.T) {
+	s := NewStore(t.TempDir())
+	item, err := s.ImportRemote("https://example.com/sub", func(string) ([]byte, error) {
+		return []byte("proxies: []\n"), nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordSelected(item.UID, "PROXY", "n1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordSelected(item.UID, "PROXY", "n2"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordSelected(item.UID, "Auto", "n1"); err != nil {
+		t.Fatal(err)
+	}
+	f, err := s.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := f.Items[0].Selected
+	if len(got) != 2 || got[0].Name != "PROXY" || got[0].Now != "n2" || got[1].Name != "Auto" || got[1].Now != "n1" {
+		t.Fatalf("selected %+v", got)
+	}
+}
+
 func TestImportRemote(t *testing.T) {
 	s := NewStore(t.TempDir())
 	if _, err := s.ImportRemote("not a url", func(string) ([]byte, error) { return nil, nil }); !errors.Is(err, ErrInvalidURL) {

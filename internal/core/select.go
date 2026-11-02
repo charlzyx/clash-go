@@ -5,16 +5,23 @@ import (
 	"fmt"
 
 	"github.com/metacubex/mihomo/adapter/outboundgroup"
+	"github.com/metacubex/mihomo/component/profile/cachefile"
 	"github.com/metacubex/mihomo/tunnel"
 )
 
-// Select writes node into the named selector group. The kernel must be running.
+// Select writes node into the named selector group and records it in
+// mihomo's selected cache, the same work as PUT /proxies/{group}.
+// The kernel must be running. The cache write follows StoreSelected.
 func (c *Core) Select(group, node string) error {
 	sel, err := c.selector(group)
 	if err != nil {
 		return err
 	}
-	return sel.Set(node)
+	if err := sel.Set(node); err != nil {
+		return err
+	}
+	cachefile.Cache().SetSelected(group, node)
+	return nil
 }
 
 // Selected returns the node the selector currently uses.
