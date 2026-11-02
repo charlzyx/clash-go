@@ -9,5 +9,6 @@ const (
 	WindowMinHeight = 520
 )
 
-// pageTitleSize is the page heading, 20px at weight 700 (Bold).
-const pageTitleSize float32 = 20
+// PageTitleSize is the page heading size in DIPs. The spec token is
+// 20px at weight 700; headings also call Bold, which is weight 700.
+const PageTitleSize float32 = 20

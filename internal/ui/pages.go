@@ -118,7 +118,7 @@ func pageByPath(path string) (Page, bool) {
 func HomePage(c *mygoui.Context, s HomeState) {
 	t := c.Theme()
 	mygoui.Column(c).Gap(16).Children(func() {
-		mygoui.Text(c, "首页").FontSize(pageTitleSize).Bold()
+		mygoui.Text(c, "首页").FontSize(PageTitleSize).Bold()
 		mygoui.Text(c, "内核").FontSize(13).TextColor(t.TextMuted)
 		mygoui.Row(c).Gap(12).AlignItems(mygoui.Stretch).Children(func() {
 			statCard(c, "内核版本", display(s.Version))
@@ -143,7 +143,7 @@ func HomePage(c *mygoui.Context, s HomeState) {
 func PlaceholderPage(c *mygoui.Context, title, body string) {
 	t := c.Theme()
 	mygoui.Column(c).Gap(8).Children(func() {
-		mygoui.Text(c, title).FontSize(pageTitleSize).Bold()
+		mygoui.Text(c, title).FontSize(PageTitleSize).Bold()
 		mygoui.Text(c, body).TextColor(t.TextMuted)
 	})
 }

@@ -63,6 +63,88 @@ func TestNavigatePages(t *testing.T) {
 	}
 }
 
+// TestM1ShellLocks freezes the three M1 shell fixes from issue #5.
+// ui.NewTester does not expose a text node's font size, so the 20px
+// token is the exported PageTitleSize used by the headings.
+func TestM1ShellLocks(t *testing.T) {
+	t.Run("subscriptions path", func(t *testing.T) {
+		var subs Page
+		var found bool
+		for _, p := range Pages() {
+			if p.Path == "/subscriptions" {
+				t.Fatal("subscriptions nav must use /profile, not /subscriptions")
+			}
+			if p.ID == "subscriptions" || p.Nav == "订阅" {
+				subs = p
+				found = true
+			}
+		}
+		if !found || subs.Path != "/profile" || subs.Nav != "订阅" {
+			t.Fatalf("subscriptions page %+v, want path /profile and nav 订阅", subs)
+		}
+		m := NewModel(demoHome())
+		tt := mygoui.NewTester(m.View, WindowWidth, WindowHeight)
+		if err := tt.Click("订阅"); err != nil {
+			t.Fatal(err)
+		}
+		if m.Router.Path() != "/profile" {
+			t.Fatalf("path %q after clicking 订阅, want /profile", m.Router.Path())
+		}
+		if !hasExactText(tt, "订阅") {
+			t.Fatalf("texts %q", tt.Texts())
+		}
+	})
+
+	t.Run("proxies title", func(t *testing.T) {
+		var title string
+		for _, p := range Pages() {
+			if p.ID == "proxies" {
+				title = p.Title
+			}
+		}
+		if title != "代理组" {
+			t.Fatalf("proxies title %q, want 代理组", title)
+		}
+		m := NewModel(demoHome())
+		tt := mygoui.NewTester(m.View, WindowWidth, WindowHeight)
+		if err := tt.Click("代理"); err != nil {
+			t.Fatal(err)
+		}
+		if m.Router.Path() != "/proxies" {
+			t.Fatalf("path %q", m.Router.Path())
+		}
+		if !hasExactText(tt, "代理组") {
+			t.Fatalf("texts %q, want an exact 代理组 title", tt.Texts())
+		}
+	})
+
+	t.Run("page title size", func(t *testing.T) {
+		if PageTitleSize != 20 {
+			t.Fatalf("PageTitleSize %v, want 20", PageTitleSize)
+		}
+		m := NewModel(demoHome())
+		tt := mygoui.NewTester(m.View, WindowWidth, WindowHeight)
+		if !hasExactText(tt, "首页") {
+			t.Fatalf("home title missing, texts %q", tt.Texts())
+		}
+		if err := tt.Click("代理"); err != nil {
+			t.Fatal(err)
+		}
+		if !hasExactText(tt, "代理组") {
+			t.Fatalf("proxies title missing, texts %q", tt.Texts())
+		}
+	})
+}
+
+func hasExactText(tt *mygoui.Tester, s string) bool {
+	for _, text := range tt.Texts() {
+		if text == s {
+			return true
+		}
+	}
+	return false
+}
+
 func TestStoppedHome(t *testing.T) {
 	m := NewModel(HomeState{Version: "1.19.33", Error: "内核没有启动"})
 	tt := mygoui.NewTester(m.View, WindowWidth, WindowHeight)
