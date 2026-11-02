@@ -57,9 +57,11 @@ func TestSelectionRestoresPerProfile(t *testing.T) {
 	assertOneSelection(t, dir, itemB.UID, "PROXY", "m3")
 
 	// Restart: a new window and a new profile.Store. The kernel object
-	// is the one already started above. Prepare would call Start again,
-	// which races mihomo's logger finalizer under -race, so this path
-	// reloads the running core instead.
+	// is the one already started above. A second Start, or Reload here,
+	// calls hub.Parse while a finalizer from the previous apply still
+	// logs, and -race reports log.SetLevel against log.Debugln. Reset
+	// the live selector to the profile default instead, then loadGroups
+	// must put n2 back.
 	again := newProfileHarness(dir)
 	again.core = first.core
 	again.loadProfiles()
@@ -67,9 +69,6 @@ func TestSelectionRestoresPerProfile(t *testing.T) {
 		t.Fatalf("fresh store current %q, want %s", again.Model().CurrentProfile, itemA.UID)
 	}
 	if err := again.installCurrentProfile(); err != nil {
-		t.Fatal(err)
-	}
-	if err := again.core.Reload(); err != nil {
 		t.Fatal(err)
 	}
 	if err := again.core.Select("PROXY", "n1"); err != nil {
