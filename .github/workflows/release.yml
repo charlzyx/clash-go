@@ -25,21 +25,67 @@ jobs:
         run: test "$GITHUB_REF_NAME" = "v$(jq -r .version mygo.json)"
 
       # mygo.json "main" is ./cmd/clash-go. The repository root has no Go files,
-      # so a default `go list .` fails.
-      - name: Build app, helper, zip, and disk image
+      # so a default `go list .` fails. -skip-dmg: mygo would seal a disk
+      # image of the app before the helper is copied in.
+      - name: Build and sign the app
         run: |
-          go tool mygo build -platform darwin/arm64
+          set -euo pipefail
+          go tool mygo build -platform darwin/arm64 -skip-dmg
           app="build/darwin-arm64/Clash Go.app"
           go build -o "$app/Contents/MacOS/clash-go-service" ./cmd/clash-go-service
           # Ad-hoc signature. "-" is the identity in mygo.json as well.
+          # Sign the helper, then the bundle, and do not touch the app after this.
           codesign --force --sign - "$app/Contents/MacOS/clash-go-service"
           codesign --force --deep --sign - "$app"
-          codesign --verify --verbose=2 "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
           ver=$(plutil -extract CFBundleShortVersionString raw -o - "$app/Contents/Info.plist")
           want=$(jq -r .version mygo.json)
           test "$ver" = "$want"
+          test -x "$app/Contents/MacOS/clash-go-service"
+
+      - name: Package zip and dmg from the signed app
+        run: |
+          set -euo pipefail
+          app="build/darwin-arm64/Clash Go.app"
+          ver=$(jq -r .version mygo.json)
           ditto -c -k --keepParent "$app" "build/darwin-arm64/Clash-Go-${ver}-arm64.zip"
+          stage=$(mktemp -d)
+          # ditto --noclone keeps the signed bundle intact for hdiutil.
+          ditto --noclone "$app" "$stage/Clash Go.app"
+          ln -s /Applications "$stage/Applications"
+          hdiutil create -ov \
+            -volname "Clash Go" \
+            -srcfolder "$stage" \
+            -fs HFS+ \
+            -format ULMO \
+            "build/darwin-arm64/clash-go-${ver}-arm64.dmg"
+          rm -rf "$stage"
           ls -lh build/darwin-arm64
+
+      - name: Verify zip and dmg
+        run: |
+          set -euo pipefail
+          ver=$(jq -r .version mygo.json)
+          zip="build/darwin-arm64/Clash-Go-${ver}-arm64.zip"
+          dmg="build/darwin-arm64/clash-go-${ver}-arm64.dmg"
+          helper="Contents/MacOS/clash-go-service"
+          uz=$(mktemp -d)
+          mnt=$(mktemp -d)
+          cleanup() {
+            hdiutil detach "$mnt" >/dev/null 2>&1 || hdiutil detach -force "$mnt" >/dev/null 2>&1 || true
+            rm -rf "$uz" "$mnt"
+          }
+          trap cleanup EXIT
+          ditto -x -k "$zip" "$uz"
+          test -x "$uz/Clash Go.app/$helper"
+          codesign --verify --deep --strict --verbose=2 "$uz/Clash Go.app"
+          hdiutil attach -readonly -nobrowse -mountpoint "$mnt" "$dmg"
+          test -x "$mnt/Clash Go.app/$helper"
+          codesign --verify --deep --strict --verbose=2 "$mnt/Clash Go.app"
+          zip_hash=$(codesign -dvvv "$uz/Clash Go.app" 2>&1 | awk -F= '/^CDHash=/{print $2; exit}')
+          dmg_hash=$(codesign -dvvv "$mnt/Clash Go.app" 2>&1 | awk -F= '/^CDHash=/{print $2; exit}')
+          test -n "$zip_hash"
+          test "$zip_hash" = "$dmg_hash"
 
       - name: Upload zip and dmg
         uses: actions/upload-artifact@v4

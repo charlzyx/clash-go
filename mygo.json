@@ -2,7 +2,7 @@
   "name": "Clash Go",
   "slug": "clash-go",
   "identifier": "app.clashgo.desktop",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "copyright": "© 2026 ChaoGPT",
   "main": "./cmd/clash-go",
   "out": "build",
