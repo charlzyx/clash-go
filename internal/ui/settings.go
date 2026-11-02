@@ -50,7 +50,7 @@ func (m *Model) systemSettings(c *mygoui.Context, pal Palette) {
 		})
 		m.switchLine(c, pal, "开机自启", &m.Prefs.AutoLaunch, "launch-row", func(bool) { m.savePrefs() }, nil)
 		m.switchLine(c, pal, "静默启动", &m.Prefs.SilentStart, "silent-row", func(bool) { m.savePrefs() }, func() {
-			mygoui.Text(c, "?").FontSize(12).Tooltip("程序启动时以后台模式运行，不显示程序面板").TextColor(pal.TextMuted)
+			helpMark(c, pal, "程序启动时以后台模式运行，不显示程序面板")
 		})
 	})
 }
@@ -79,7 +79,7 @@ func (m *Model) clashSettings(c *mygoui.Context, pal Palette) {
 		disabled := m.currentProfile() == nil || m.DNSAsk
 		mygoui.Row(c).FillWidth().Padding(5, 0).AlignItems(mygoui.Center).Gap(8).Children(func() {
 			mygoui.Text(c, "DNS 覆写").FontSize(14).Grow(1)
-			mygoui.Text(c, "i").FontSize(12).Tooltip("DNS 覆写开关按订阅独立保存，仅对对应订阅生效。").TextColor(pal.TextMuted)
+			helpMark(c, pal, "DNS 覆写开关按订阅独立保存，仅对对应订阅生效。")
 			if textButton(c, pal, "齿轮", "DNS 覆写", "dns-gear") {
 				m.Dialogs.DNS = true
 			}
@@ -95,7 +95,7 @@ func (m *Model) clashSettings(c *mygoui.Context, pal Palette) {
 		})
 		m.switchLine(c, pal, "IPv6", &m.Prefs.IPv6, "ipv6", func(bool) { m.savePrefs() }, nil)
 		m.switchLine(c, pal, "统一延迟", &m.Prefs.UnifiedDelay, "unified", func(bool) { m.savePrefs() }, func() {
-			mygoui.Text(c, "?").Tooltip("开启统一延迟时，会进行两次延迟测试，以消除连接握手等带来的不同类型节点的延迟差异")
+			helpMark(c, pal, "开启统一延迟时，会进行两次延迟测试，以消除连接握手等带来的不同类型节点的延迟差异")
 		})
 		m.labeledSelect(c, "日志等级", &m.Prefs.LogLevel, []string{"debug", "info", "warning", "error", "silent"}, "log-level")
 		clickRow(c, pal, "端口设置", "ports", m.Busy == "ports", func() { m.Dialogs.Ports = true }, func() {
@@ -139,13 +139,11 @@ func (m *Model) vergeBasic(c *mygoui.Context, pal Palette) {
 			}
 		})
 		mygoui.Text(c, "主题模式").FontSize(14)
-		mygoui.Row(c).Gap(6).Padding(4, 0).Children(func() {
-			for _, item := range []struct{ id, label string }{{"light", "浅色"}, {"dark", "深色"}, {"system", "系统"}} {
-				if filledButton(c, pal, item.label, "theme-"+item.id, m.Prefs.ThemeMode == item.id) {
-					m.Prefs.ThemeMode = item.id
-					m.savePrefs()
-				}
-			}
+		segmentButtons(c, pal, "theme", []struct{ id, label string }{
+			{"light", "浅色"}, {"dark", "深色"}, {"system", "系统"},
+		}, m.Prefs.ThemeMode, func(id string) {
+			m.Prefs.ThemeMode = id
+			m.savePrefs()
 		})
 		if runtime.GOOS != "linux" || m.ForceTray {
 			m.choiceRow(c, "托盘点击事件", &m.Prefs.TrayEvent, TrayEvents(), "tray-event")
@@ -191,11 +189,11 @@ func (m *Model) vergeBasic(c *mygoui.Context, pal Palette) {
 func (m *Model) vergeAdvanced(c *mygoui.Context, pal Palette) {
 	sectionCard(c, pal, "Verge 高级设置", func() {
 		clickRow(c, pal, "备份设置", "backup", false, func() { m.Dialogs.Backup = true }, func() {
-			mygoui.Text(c, "?").Tooltip("支持本地或 WebDAV 方式备份配置文件")
+			helpMark(c, pal, "支持本地或 WebDAV 方式备份配置文件")
 		})
 		clickRow(c, pal, "当前配置", "runtime-row", false, func() { m.Dialogs.Runtime = true }, nil)
 		clickRow(c, pal, "配置目录", "conf-dir", false, func() { m.openDir("config") }, func() {
-			mygoui.Text(c, "?").Tooltip("如果软件运行异常，备份并删除此文件夹下的所有文件，重启软件")
+			helpMark(c, pal, "如果软件运行异常，备份并删除此文件夹下的所有文件，重启软件")
 		})
 		clickRow(c, pal, "内核目录", "core-dir", false, func() { m.openDir("core") }, nil)
 		clickRow(c, pal, "日志目录", "log-dir", false, func() { m.openDir("logs") }, nil)
@@ -204,7 +202,7 @@ func (m *Model) vergeAdvanced(c *mygoui.Context, pal Palette) {
 		}, nil)
 		clickRow(c, pal, "开发者工具", "devtools", false, func() { m.Notice = "开发者工具" }, nil)
 		clickRow(c, pal, "轻量模式设置", "lite-row", false, func() { m.Dialogs.Lite = true }, func() {
-			mygoui.Text(c, "?").Tooltip("关闭 GUI 界面，仅保留内核运行")
+			helpMark(c, pal, "关闭 GUI 界面，仅保留内核运行")
 		})
 		clickRow(c, pal, "退出", "quit-row", false, func() {
 			if m.Hooks.Quit != nil {

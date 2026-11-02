@@ -84,7 +84,7 @@ func (m *Model) profileCard(c *mygoui.Context, pal Palette) mygoui.Element {
 			return
 		}
 		if p.Home != "" {
-			if textButton(c, pal, "打开主页", p.Home, "profile-home") {
+			if textLink(c, pal, "打开主页", p.Home, "profile-home") {
 				c.OpenURL(p.Home)
 			}
 		}
@@ -98,7 +98,7 @@ func (m *Model) profileCard(c *mygoui.Context, pal Palette) mygoui.Element {
 			if p.Updating {
 				label = "更新中"
 			}
-			if textButton(c, pal, label, "更新订阅", "profile-update") {
+			if textLink(c, pal, label, "更新订阅", "profile-update") {
 				p.Updating = !p.Updating
 			}
 		}
@@ -258,9 +258,9 @@ func (m *Model) networkCard(c *mygoui.Context, pal Palette) mygoui.Element {
 			}
 		})
 		desc, tip := m.networkDesc()
-		mygoui.Row(c).Padding(8).Radius(4).Border(1, pal.Primary).AlignItems(mygoui.Center).Children(func() {
+		mygoui.Row(c).Padding(8).Radius(4).AlignItems(mygoui.Center).Label("net-desc").Children(func() {
 			mygoui.Text(c, desc).FontSize(12).TextColor(pal.TextMuted).Grow(1)
-			mygoui.Text(c, "?").FontSize(14).Tooltip(tip).TextColor(pal.TextMuted)
+			helpMark(c, pal, tip)
 		})
 		on := m.Home.SystemProxy
 		label := "系统代理"
@@ -332,7 +332,7 @@ func (m *Model) modeCard(c *mygoui.Context, pal Palette) mygoui.Element {
 			}
 		})
 		mygoui.Text(c, modeDesc(m.Home.Mode)).FontSize(12).TextColor(pal.TextMuted).Padding(8).
-			Border(1, pal.Primary).Radius(4)
+			Radius(4).Label("mode-desc")
 	})
 }
 

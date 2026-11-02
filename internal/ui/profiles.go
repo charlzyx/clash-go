@@ -61,8 +61,14 @@ func (m *Model) importRow(c *mygoui.Context, pal Palette) {
 		} else if textButton(c, pal, "清除", "清除", "clear-url") {
 			m.ProfileURL = ""
 		}
+		disabled := strings.TrimSpace(m.ProfileURL) == "" || m.ProfileBusy
 		b := mygoui.ButtonBase(c.Key("do-import")).Height(28).Padding(0, 10).Radius(6).Label("do-import")
-		b.Background(pal.Primary).TextColor(pal.OnPrimary).Disabled(strings.TrimSpace(m.ProfileURL) == "" || m.ProfileBusy)
+		if disabled {
+			b.Background(pal.TextMuted.Alpha(0.18)).TextColor(pal.TextMuted)
+		} else {
+			b.Background(pal.Primary).TextColor(pal.OnPrimary)
+		}
+		b.Disabled(disabled)
 		b.Children(func() { mygoui.Text(c, "导入").FontSize(13) })
 		if b.Clicked() {
 			m.importProfile(c)

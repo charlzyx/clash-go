@@ -487,7 +487,7 @@ func TestSettingsSections(t *testing.T) {
 		t.Fatal("tray click row")
 	}
 	port, pok := tt.Find("7897")
-	chev, cok := tt.Find("›")
+	chev, cok := tt.Find(settingsChevron)
 	if !pok || !cok || port.X+port.W > chev.X {
 		t.Fatalf("chevron should sit to the right of the port value, port %v chevron %v", port, chev)
 	}
@@ -632,6 +632,164 @@ func TestProfileDividerStaysWithCards(t *testing.T) {
 	}
 	if d.X < sidebarExpandedWidth+4 || d.X+d.W > float32(WindowWidth)-8 {
 		t.Fatalf("divider %v extends outside the card column", d)
+	}
+}
+
+func TestSettingsRowChevronFormat(t *testing.T) {
+	m := DemoModel()
+	m.Router.Replace("/settings")
+	tt := renderModel(m, WindowWidth, 1600, false)
+	rows := []string{
+		"ports", "external", "webui", "core-row", "geo", "tunnels",
+		"theme-row", "layout-row", "misc-row", "hotkey-row", "backup",
+		"runtime-row", "conf-dir", "core-dir", "log-dir", "check-update",
+		"devtools", "lite-row", "quit-row",
+	}
+	if runtime.GOOS == "windows" {
+		rows = append(rows, "uwp")
+	}
+	texts := tt.Texts()
+	n := 0
+	for _, s := range texts {
+		if !strings.Contains(s, "›") {
+			continue
+		}
+		n++
+		if s != settingsChevron {
+			t.Errorf("settings row renders %q, want value + one space + › (%q)", s, settingsChevron)
+		}
+	}
+	if n != len(rows) {
+		t.Fatalf("chevron count %d, want one per settings row (%d)", n, len(rows))
+	}
+	for _, id := range rows {
+		if _, ok := tt.Find(id); !ok {
+			t.Errorf("missing settings row %s", id)
+		}
+	}
+	sawPort := false
+	for i, s := range texts {
+		if s != "7897" {
+			continue
+		}
+		sawPort = true
+		if i+1 >= len(texts) || texts[i+1] != settingsChevron {
+			t.Fatalf("port row near %q, want %q", texts[max(0, i-1):min(len(texts), i+3)], "7897"+settingsChevron)
+		}
+	}
+	if !sawPort {
+		t.Fatal("port value missing")
+	}
+}
+
+func TestProfileCardLinesAlignLeft(t *testing.T) {
+	m := DemoModel()
+	tt := renderModel(m, WindowWidth, WindowHeight, false)
+	home, okH := tt.Find("打开主页")
+	from, okF := tt.Find("来自 example.com")
+	updated, okU := tt.Find("更新时间 2026-11-02 09:30")
+	if !okH || !okF || !okU {
+		t.Fatalf("profile lines home %v from %v updated %v texts %q", okH, okF, okU, tt.Texts())
+	}
+	if home.X > from.X+4 || updated.X > from.X+4 {
+		t.Fatalf("profile body is not left aligned: home %v from %v updated %v", home, from, updated)
+	}
+}
+
+func TestDescriptionBarsHaveNoPrimaryBorder(t *testing.T) {
+	m := DemoModel()
+	tt := renderModel(m, WindowWidth, WindowHeight, false)
+	img := tt.Image()
+	for _, id := range []string{"net-desc", "mode-desc"} {
+		r, ok := tt.Find(id)
+		if !ok {
+			t.Fatalf("missing %s", id)
+		}
+		x := int(r.X + 2)
+		y := int(r.Y)
+		if x < 0 || y < 0 || x >= img.Bounds().Dx() || y >= img.Bounds().Dy() {
+			t.Fatalf("%s at %v is outside the frame", id, r)
+		}
+		rr, gg, bb, _ := img.At(x, y).RGBA()
+		if rr>>8 < 0x30 && gg>>8 > 0x50 && bb>>8 > 0xD0 {
+			t.Fatalf("%s still has a primary border #%02x%02x%02x", id, rr>>8, gg>>8, bb>>8)
+		}
+	}
+}
+
+func TestSettingsHelpMarksUseQuestion(t *testing.T) {
+	m := DemoModel()
+	m.Router.Replace("/settings")
+	tt := renderModel(m, WindowWidth, 1600, false)
+	if hasExactText(tt, "i") {
+		t.Fatal("settings still mixes an i mark with the question mark")
+	}
+	n := 0
+	for _, s := range tt.Texts() {
+		if s == "?" {
+			n++
+		}
+	}
+	if n < 5 {
+		t.Fatalf("help marks %d, want the silent, DNS, delay, backup, directory and lite rows", n)
+	}
+}
+
+func TestThemeModeIsJoined(t *testing.T) {
+	m := DemoModel()
+	m.Router.Replace("/settings")
+	tt := renderModel(m, WindowWidth, WindowHeight, false)
+	light, okL := tt.Find("theme-light")
+	dark, okD := tt.Find("theme-dark")
+	system, okS := tt.Find("theme-system")
+	if !okL || !okD || !okS {
+		t.Fatal("theme segments")
+	}
+	if gap := dark.X - (light.X + light.W); gap > 1 {
+		t.Fatalf("theme buttons are separate, gap %v", gap)
+	}
+	if gap := system.X - (dark.X + dark.W); gap > 1 {
+		t.Fatalf("theme buttons are separate, gap %v", gap)
+	}
+	if light.Y != dark.Y || dark.Y != system.Y {
+		t.Fatalf("theme buttons are not one row: %v %v %v", light, dark, system)
+	}
+}
+
+func TestImportDisabledIsGray(t *testing.T) {
+	m := NewModel(demoHome())
+	m.Router.Replace("/profile")
+	tt := renderModel(m, WindowWidth, WindowHeight, false)
+	assertImportFill(t, tt, false)
+	if err := tt.Click("do-import"); err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Profiles) != 0 {
+		t.Fatal("disabled import added a profile")
+	}
+	m.ProfileURL = "https://example.com/a"
+	tt = renderModel(m, WindowWidth, WindowHeight, false)
+	assertImportFill(t, tt, true)
+}
+
+func assertImportFill(t *testing.T, tt *mygoui.Tester, enabled bool) {
+	t.Helper()
+	r, ok := tt.Find("do-import")
+	if !ok {
+		t.Fatal("import button")
+	}
+	x, y := int(r.X+r.W/2), int(r.Y+r.H/2)
+	img := tt.Image()
+	if x < 0 || y < 0 || x >= img.Bounds().Dx() || y >= img.Bounds().Dy() {
+		t.Fatalf("import button %v outside the frame", r)
+	}
+	rr, gg, bb, _ := img.At(x, y).RGBA()
+	primary := rr>>8 < 0x30 && gg>>8 > 0x50 && bb>>8 > 0xD0
+	if enabled && !primary {
+		t.Fatalf("enabled import #%02x%02x%02x, want primary", rr>>8, gg>>8, bb>>8)
+	}
+	if !enabled && primary {
+		t.Fatalf("disabled import is still light blue #%02x%02x%02x", rr>>8, gg>>8, bb>>8)
 	}
 }
 
