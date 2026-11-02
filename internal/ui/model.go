@@ -16,6 +16,7 @@ type Hooks struct {
 	SetTUN              func(on bool) error
 	SetMode             func(mode string) error
 	SelectProxy         func(group, node string) error
+	UseProfile          func(uid string) error
 	CloseConnection     func(id string) error
 	CloseAllConnections func() error
 	ClearClosed         func()
@@ -31,6 +32,8 @@ type Hooks struct {
 	Copy                func(text string)
 	Quit                func()
 	TestSite            func(url string) error
+	ProbeSite           func(url string) (int, error)
+	SaveSites           func([]SiteTest) error
 }
 
 // Model is the main window: a sidebar and the page it shows.
@@ -72,6 +75,7 @@ type Model struct {
 	Conns          ConnView
 	Rules          RuleView
 	Logs           LogView
+	TestForm       TestForm
 }
 
 type dialogSet struct {
@@ -123,9 +127,6 @@ func (m *Model) normalize() {
 	}
 	if m.Prefs.Language == "" {
 		m.Prefs = DefaultPrefs()
-	}
-	if len(m.Sites) == 0 {
-		m.Sites = DefaultSites()
 	}
 	if m.ShowNextUpdate == nil {
 		m.ShowNextUpdate = map[string]bool{}
@@ -179,6 +180,9 @@ func (m *Model) View(c *mygoui.Context) {
 				case "/logs":
 					r.Title("日志")
 					m.logsPage(c, pal)
+				case "/test":
+					r.Title("测试")
+					m.testPage(c, pal)
 				default:
 					page, ok := pageByPath(path)
 					if !ok {

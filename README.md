@@ -61,7 +61,7 @@ go tool cover -func=coverage.out | tail -n 1
 - 会真的打开窗口、改系统代理或打开 TUN 的测试带 `//go:build integration`，默认不编进去。
 - 内核测试用 `httptest` 提供一份只含 `DIRECT` 的订阅，不访问外网。mihomo 是进程内单例，这些测试不能 `t.Parallel`。
 - 覆盖率暂不设门槛。
-- 设置 `CLASHGO_SCREENSHOT_DIR` 后，`internal/ui` 的测试会用 `ui.NewTester` 把每一页画成 940×700 的 PNG，亮色和暗色各一张，文件名像 `home-light.png`、`home-dark.png`、`proxies-light.png`。画的是主窗口那份视图，没有系统标题栏。已提交的一份在 `docs/spec/screenshots/m1/`。CI 也会把它们当成 artifact 上传。
+- 设置 `CLASHGO_SCREENSHOT_DIR` 后，`internal/ui` 的测试会用 `ui.NewTester` 把每一页画成 940×700 的 PNG，亮色和暗色各一张，文件名像 `home-light.png`、`home-dark.png`、`proxies-light.png`。画的是主窗口那份视图，没有系统标题栏。已提交的一份在 `docs/spec/screenshots/m1/`，M4 在 `docs/spec/screenshots/m4/`。CI 也会把它们当成 artifact 上传。
 
 ## CI
 
@@ -73,4 +73,4 @@ go tool cover -func=coverage.out | tail -n 1
 - **M1（当前）** 骨架、内嵌内核、占位页面、托盘占位、macOS arm64 的 `.app` / `.dmg`。
 - **M2** 内核配置重载、订阅、代理页、真正的系统代理、托盘状态。
 - **M3** 连接、规则、日志、测试、设置页。
-- **M4** TUN、服务助手、自动更新。
+- **M4** 测试页、TUN 配置（无服务助手时拒绝开启；CI 不打开 TUN）。自动更新仍在后面。

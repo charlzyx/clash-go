@@ -108,7 +108,7 @@ func TestImportSelectPersistsAcrossStoreReload(t *testing.T) {
 			if len(page.Groups) > 0 {
 				now = page.Groups[0].Now
 			}
-			t.Skipf("profiles.json kept PROXY=n2, but the restarted window shows group now %q home %q. loadProfiles does not copy Selected, and loadGroups rebuilds Now from the YAML now field", now, page.Home.Node.Name)
+			t.Fatalf("restarted window group now %q home %q, want PROXY=n2", now, page.Home.Node.Name)
 		}
 		if !view.HasText("n2") {
 			t.Fatalf("restarted proxies page texts %q", view.Texts())

@@ -7,9 +7,11 @@ package tun
 import "sync"
 
 // Controller reads and sets whether TUN is enabled.
+// Available is false when turning it on must be refused (no helper, or CI).
 type Controller interface {
 	Current() (bool, error)
 	Set(enabled bool) error
+	Available() bool
 }
 
 // Memory remembers the switch in the process.
@@ -35,6 +37,10 @@ func (m *Memory) Current() (bool, error) {
 	defer m.mu.Unlock()
 	return m.on, nil
 }
+
+// Available reports that the in-memory switch may change.
+// It does not open a device.
+func (m *Memory) Available() bool { return true }
 
 // Set records enabled.
 func (m *Memory) Set(enabled bool) error {
