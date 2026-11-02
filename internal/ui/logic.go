@@ -12,6 +12,8 @@ import (
 
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
+
+	mygoui "github.com/egoist/mygo/ui"
 )
 
 const (
@@ -655,6 +657,93 @@ func UsagePercent(used, total int64) int {
 		return 100
 	}
 	return p
+}
+
+// MatchRulePayload reports whether a rule payload matches a search.
+// An empty query matches every payload. Matching is case-insensitive and
+// does not look at the rule type or the proxy policy.
+func MatchRulePayload(payload, query string) bool {
+	if query == "" {
+		return true
+	}
+	return strings.Contains(strings.ToLower(payload), strings.ToLower(query))
+}
+
+// RuleLine is a rule plus the 1-based index it had before filtering.
+// Line is derived for the row and is not written back onto Rule.
+type RuleLine struct {
+	Line int
+	Rule Rule
+}
+
+// FilterRules keeps rules whose payload matches query, in the original
+// order. The returned line numbers are the original index+1.
+func FilterRules(rules []Rule, query string) []RuleLine {
+	out := make([]RuleLine, 0, len(rules))
+	for i, rule := range rules {
+		if MatchRulePayload(rule.Payload, query) {
+			out = append(out, RuleLine{Line: i + 1, Rule: rule})
+		}
+	}
+	return out
+}
+
+// ShowRuleScrollTop reports whether the virtual list has moved far enough
+// to show the scroll-to-top control. firstVisible is the first row in
+// view; each row is estimated at RuleRowEstimate, and the control appears
+// once that offset passes RuleScrollTopAfter.
+func ShowRuleScrollTop(firstVisible int) bool {
+	if firstVisible <= 0 {
+		return false
+	}
+	return float32(firstVisible)*RuleRowEstimate > RuleScrollTopAfter
+}
+
+// RuleProxyColor is the policy color from rule-item.tsx: REJECT is the
+// error color, DIRECT stays the primary text, and any other policy picks
+// a palette color from the sum of its code points.
+func RuleProxyColor(pal Palette, proxy string) mygoui.Color {
+	switch proxy {
+	case "REJECT", "REJECT-DROP":
+		return pal.Error
+	case "DIRECT":
+		return pal.Text
+	default:
+		sum := 0
+		for _, r := range proxy {
+			sum += int(r)
+		}
+		colors := [...]mygoui.Color{pal.Primary, pal.Secondary, pal.Info, pal.Warning, pal.Success}
+		idx := sum % len(colors)
+		if idx < 0 {
+			idx += len(colors)
+		}
+		return colors[idx]
+	}
+}
+
+// FormatUpdated is the rule-provider "更新于" value. A zero time is "-".
+// Recent times are relative; older ones are a date.
+func FormatUpdated(at, now time.Time) string {
+	if at.IsZero() {
+		return "-"
+	}
+	if !now.After(at) {
+		return at.Format("2006-01-02")
+	}
+	d := now.Sub(at)
+	switch {
+	case d < time.Minute:
+		return "刚刚"
+	case d < time.Hour:
+		return fmt.Sprintf("%d 分钟前", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%d 小时前", int(d.Hours()))
+	case d < 30*24*time.Hour:
+		return fmt.Sprintf("%d 天前", int(d.Hours()/24))
+	default:
+		return at.Format("2006-01-02")
+	}
 }
 
 // FinishTest leaves a site in a terminal state. A failure must not stay "testing".

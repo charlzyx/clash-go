@@ -160,6 +160,87 @@ rules:
 	}
 }
 
+func TestRulesAndRuleProvider(t *testing.T) {
+	dir := t.TempDir()
+	ruleset := filepath.Join(dir, "reject.yaml")
+	if err := os.WriteFile(ruleset, []byte("payload:\n  - example.org\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mixed := freePort(t)
+	cfg := fmt.Sprintf(`mixed-port: %d
+socks-port: 0
+port: 0
+redir-port: 0
+tproxy-port: 0
+allow-lan: false
+mode: rule
+log-level: error
+ipv6: false
+find-process-mode: off
+geo-auto-update: false
+dns:
+  enable: false
+rule-providers:
+  reject:
+    type: file
+    behavior: domain
+    path: %q
+    interval: 86400
+rules:
+  - DOMAIN,google.com,DIRECT
+  - RULE-SET,reject,REJECT
+  - MATCH,DIRECT
+`, mixed, ruleset)
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(cfg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	c := New()
+	if c.Rules() != nil || c.RuleProviders() != nil {
+		t.Fatal("stopped core returned rules")
+	}
+	if err := c.UpdateRuleProvider("reject"); err == nil {
+		t.Fatal("update on a stopped core succeeded")
+	}
+	if err := c.Start(dir); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	t.Cleanup(func() { _ = c.Stop() })
+
+	rules := c.Rules()
+	if len(rules) != 3 {
+		t.Fatalf("rules %+v, want 3", rules)
+	}
+	if rules[0].Type != "Domain" || rules[0].Payload != "google.com" || rules[0].Proxy != "DIRECT" {
+		t.Fatalf("first rule %+v", rules[0])
+	}
+	if rules[1].Type != "RuleSet" || rules[1].Payload != "reject" || rules[1].Proxy != "REJECT" {
+		t.Fatalf("rule set %+v", rules[1])
+	}
+	if rules[2].Type != "Match" || rules[2].Payload != "" || rules[2].Proxy != "DIRECT" {
+		t.Fatalf("match %+v", rules[2])
+	}
+	provs := c.RuleProviders()
+	if len(provs) != 1 || provs[0].Name != "reject" || provs[0].RuleCount != 1 {
+		t.Fatalf("providers %+v", provs)
+	}
+	if provs[0].VehicleType != "File" || provs[0].Behavior != "Domain" {
+		t.Fatalf("provider meta %+v", provs[0])
+	}
+	// Do not rewrite the file here. mihomo watches it and calls Update on
+	// that goroutine; writing and updating together races inside the fetcher.
+	if err := c.UpdateRuleProvider("reject"); err != nil {
+		t.Fatal(err)
+	}
+	provs = c.RuleProviders()
+	if len(provs) != 1 || provs[0].Name != "reject" || provs[0].RuleCount != 1 {
+		t.Fatalf("after update %+v", provs)
+	}
+	if err := c.UpdateRuleProvider("missing"); err == nil {
+		t.Fatal("missing provider updated")
+	}
+}
+
 func TestReloadWhenStopped(t *testing.T) {
 	if err := New().Reload(); err == nil {
 		t.Fatal("Reload on a stopped core succeeded")

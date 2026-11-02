@@ -47,6 +47,10 @@ func (a *App) ready(quitting *bool) {
 		UseContentSize: true,
 		Content:        mygoui.View(a.model.View),
 	})
+	// The rules page refreshes when the window is shown again, the same
+	// moment Verge's useVisibility flips back to visible.
+	a.win.OnShow(func() { a.setPageVisible(true) })
+	a.win.OnHide(func() { a.setPageVisible(false) })
 	a.win.OnClose(func(e *mygo.CloseEvent) {
 		if quitting != nil && *quitting {
 			return

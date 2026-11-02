@@ -12,6 +12,7 @@ func (m *Model) overlay(c *mygoui.Context, pal Palette) {
 	m.deleteDialog(c, pal)
 	m.profileForm(c, pal)
 	m.providerDialog(c, pal)
+	m.ruleProviderDialog(c, pal)
 	m.simpleDialog(c, pal, &m.Dialogs.Theme, "主题设置", m.themeBody)
 	m.simpleDialog(c, pal, &m.Dialogs.Layout, "界面设置", m.layoutBody)
 	m.simpleDialog(c, pal, &m.Dialogs.Misc, "杂项设置", m.miscBody)

@@ -93,6 +93,24 @@ type ProxyProvider struct {
 	Updating bool
 }
 
+// Rule is one kernel rule. The line number is not stored: the page
+// shows index+1 from the slice position and never writes it back.
+type Rule struct {
+	Type    string
+	Payload string
+	Proxy   string
+}
+
+// RuleProvider is one rule-set the rules page can update.
+type RuleProvider struct {
+	Name        string
+	VehicleType string
+	Behavior    string
+	RuleCount   int
+	UpdatedAt   time.Time
+	Updating    bool
+}
+
 // ChainState is the chain-proxy panel.
 type ChainState struct {
 	On         bool
