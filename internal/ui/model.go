@@ -184,7 +184,8 @@ func (m *Model) sidebar(c *mygoui.Context, pal Palette) {
 	page := m.Router.Path()
 	mygoui.Column(c).Width(200).FillHeight().Background(pal.Paper).
 		BorderWidth(0, 1, 0, 0).BorderColor(pal.Divider).Children(func() {
-		mygoui.Column(c).Height(56).Padding(12, 16).Justify(mygoui.Center).Children(func() {
+		mygoui.Row(c).Height(56).Padding(0, 16).Gap(8).AlignItems(mygoui.Center).Children(func() {
+			mygoui.Image(c, brandMark).Size(brandMarkSize, brandMarkSize).Label("mygo")
 			mygoui.Text(c, "Clash Go").Bold().FontSize(16)
 		})
 		mygoui.Column(c).Grow(1).Padding(8, 12).Gap(4).Children(func() {

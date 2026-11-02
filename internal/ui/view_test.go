@@ -37,8 +37,32 @@ func TestHomeShowsKernelStatus(t *testing.T) {
 			t.Errorf("home missing %q", text)
 		}
 	}
-	if !tt.HasText("运行中") {
-		t.Fatal("sidebar status")
+	if !tt.HasText("运行中") || !tt.HasText("Clash Go") {
+		t.Fatal("sidebar title")
+	}
+}
+
+func TestSidebarBrandMark(t *testing.T) {
+	m := NewModel(demoHome())
+	tt := renderModel(m, WindowWidth, WindowHeight, false)
+	if !tt.HasText("mygo") || !tt.HasText("Clash Go") {
+		t.Fatal("brand mark is not next to the app name")
+	}
+	mark, ok := tt.Find("mygo")
+	name, nameOK := tt.Find("Clash Go")
+	if !ok || !nameOK {
+		t.Fatal("missing brand mark or name")
+	}
+	if mark.X >= name.X || mark.Y < 0 || mark.Y > 56 {
+		t.Fatalf("mark at %v, name at %v", mark, name)
+	}
+	img := tt.Image()
+	cx := int(mark.X + mark.W/2)
+	cy := int(mark.Y + mark.H/2)
+	r, g, b, _ := img.At(cx, cy).RGBA()
+	// Center of the favicon is the cyan tile, #00add8, inside the white ring.
+	if r>>8 > 0x30 || g>>8 < 0x90 || b>>8 < 0xB0 {
+		t.Fatalf("brand mark center #%02x%02x%02x at %d,%d", r>>8, g>>8, b>>8, cx, cy)
 	}
 }
 
