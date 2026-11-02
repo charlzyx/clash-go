@@ -20,6 +20,7 @@ func (m *Model) overlay(c *mygoui.Context, pal Palette) {
 	m.simpleDialog(c, pal, &m.Dialogs.Ports, "端口设置", m.portsBody)
 	m.simpleDialog(c, pal, &m.Dialogs.Sysproxy, "系统代理设置", m.sysproxyBody)
 	m.simpleDialog(c, pal, &m.Dialogs.TUN, "TUN 设置", m.tunBody)
+	m.serviceDialog(c, pal)
 	m.simpleDialog(c, pal, &m.Dialogs.DNS, "DNS 覆写", m.dnsBody)
 	m.simpleDialog(c, pal, &m.Dialogs.Runtime, "当前配置", m.runtimeBody)
 	m.simpleDialog(c, pal, &m.Dialogs.Lite, "轻量模式设置", m.liteBody)
@@ -502,8 +503,10 @@ func (m *Model) sysproxyBody(c *mygoui.Context, pal Palette) {
 
 func (m *Model) tunBody(c *mygoui.Context, pal Palette) {
 	mygoui.Text(c, "栈").FontSize(13)
-	stack := "gVisor"
-	mygoui.Select(c, &stack, []string{"System", "gVisor", "Mixed", "Mips"}).Label("tun-stack")
+	if m.TunStack == "" {
+		m.TunStack = "Mips"
+	}
+	mygoui.Select(c, &m.TunStack, []string{"System", "gVisor", "Mixed", "Mips"}).Label("tun-stack")
 	mygoui.Text(c, "DNS").FontSize(13)
 	dns := "Auto"
 	mygoui.Select(c, &dns, []string{"Auto", "Disabled", "Native", "Hijack"}).Label("tun-dns")
@@ -511,6 +514,70 @@ func (m *Model) tunBody(c *mygoui.Context, pal Palette) {
 	dev := "utun"
 	mygoui.TextInput(c, &dev)
 	_ = pal
+}
+
+func (m *Model) serviceDialog(c *mygoui.Context, pal Palette) {
+	if !m.Dialogs.Service {
+		return
+	}
+	mygoui.Modal(c, &m.Dialogs.Service, func() {
+		mygoui.Column(c).Width(420).Padding(16).Gap(8).Background(pal.Dialog).Radius(8).Children(func() {
+			mygoui.Text(c, "服务模式").FontSize(18).Bold()
+			state := "未安装"
+			if m.ServiceInstalled {
+				state = "已安装"
+			}
+			mygoui.Text(c, "当前状态："+state).FontSize(14)
+			mygoui.Text(c, "安装服务后，内核由服务拉起，即可使用 TUN。未安装时无法开启虚拟网卡。").FontSize(13).TextColor(pal.TextMuted)
+			mygoui.Row(c).Gap(8).Justify(mygoui.End).Children(func() {
+				if !m.ServiceInstalled && filledButton(c, pal, "安装服务", "service-install", true) {
+					m.installService()
+				}
+				if m.ServiceInstalled && filledButton(c, pal, "卸载服务", "service-uninstall", false) {
+					m.uninstallService()
+				}
+				if textButton(c, pal, "关闭", "关闭", "service-close") {
+					m.Dialogs.Service = false
+				}
+			})
+		})
+	})
+}
+
+func (m *Model) installService() {
+	m.Busy = "service"
+	defer func() { m.Busy = "" }()
+	if m.Hooks.InstallService == nil {
+		m.Notice = "安装服务失败"
+		return
+	}
+	if err := m.Hooks.InstallService(); err != nil {
+		m.Notice = "安装服务失败"
+		return
+	}
+	m.ServiceInstalled = true
+	m.Home.TUNAvailable = true
+	m.Home.RunMode = RunService
+	m.Notice = "已成功安装服务"
+}
+
+func (m *Model) uninstallService() {
+	m.Busy = "service"
+	defer func() { m.Busy = "" }()
+	if m.Hooks.UninstallService == nil {
+		m.Notice = "卸载服务失败"
+		return
+	}
+	if err := m.Hooks.UninstallService(); err != nil {
+		m.Notice = "卸载服务失败"
+		return
+	}
+	m.ServiceInstalled = false
+	m.ServiceRunning = false
+	if m.Home.RunMode == RunService {
+		m.Home.RunMode = RunSidecar
+	}
+	m.Notice = "已成功卸载服务"
 }
 
 func (m *Model) dnsBody(c *mygoui.Context, pal Palette) {

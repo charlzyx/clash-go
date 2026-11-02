@@ -18,10 +18,12 @@ import (
 	"github.com/charlzyx/clash-go/internal/conn"
 	"github.com/charlzyx/clash-go/internal/core"
 	"github.com/charlzyx/clash-go/internal/profile"
+	"github.com/charlzyx/clash-go/internal/service"
 	"github.com/charlzyx/clash-go/internal/sitetest"
 	"github.com/charlzyx/clash-go/internal/sysproxy"
 	"github.com/charlzyx/clash-go/internal/tun"
 	"github.com/charlzyx/clash-go/internal/ui"
+	"github.com/charlzyx/clash-go/internal/unlock"
 
 	"github.com/egoist/mygo"
 )
@@ -31,11 +33,12 @@ import (
 // (an in-memory proxy elsewhere), and a TUN controller that only
 // remembers the switch.
 type Options struct {
-	Dirs  appdir.Provider
-	Store appconfig.Store
-	Proxy sysproxy.Controller
-	TUN   tun.Controller
-	Core  *core.Core
+	Dirs    appdir.Provider
+	Store   appconfig.Store
+	Proxy   sysproxy.Controller
+	TUN     tun.Controller
+	Service service.Manager
+	Core    *core.Core
 }
 
 // App is one running Clash Go process.
@@ -44,6 +47,7 @@ type App struct {
 	store appconfig.Store
 	proxy sysproxy.Controller
 	tun   tun.Controller
+	svc   service.Manager
 	core  *core.Core
 
 	settings appconfig.Settings
@@ -74,6 +78,9 @@ func New(opt Options) *App {
 	if opt.TUN == nil {
 		opt.TUN = tun.Platform()
 	}
+	if opt.Service == nil {
+		opt.Service = service.Platform()
+	}
 	if opt.Core == nil {
 		opt.Core = core.New()
 	}
@@ -82,6 +89,7 @@ func New(opt Options) *App {
 		store: opt.Store,
 		proxy: opt.Proxy,
 		tun:   opt.TUN,
+		svc:   opt.Service,
 		core:  opt.Core,
 	}
 }
@@ -146,9 +154,8 @@ func (a *App) applySettings() {
 	a.model.Home.SystemProxy = prefs.SystemProxy
 	a.model.Home.TUN = prefs.TUN
 	a.model.Home.AutoLaunch = prefs.AutoLaunch
-	if a.tun != nil {
-		a.model.Home.TUNAvailable = a.tun.Available()
-	}
+	a.model.Home.TUNAvailable = a.tunAllowed()
+	a.model.ServiceInstalled = a.serviceReady()
 }
 
 func (a *App) loadProfiles() {
@@ -251,7 +258,7 @@ func (a *App) SetSystemProxy(on bool) error {
 // mihomo profile, and stores the switch. Missing permission does not write
 // tun.enable or the saved switch. CI never reloads a running kernel into TUN.
 func (a *App) SetTUN(on bool) error {
-	if a.tun != nil && on && !a.tun.Available() {
+	if on && !a.tunAllowed() {
 		if a.model != nil {
 			a.model.Home.TUN = false
 			a.model.Home.TUNAvailable = false
@@ -262,7 +269,12 @@ func (a *App) SetTUN(on bool) error {
 	if err := a.applyTUNFile(on); err != nil {
 		return err
 	}
-	if a.tun != nil {
+	if a.serviceReady() {
+		if err := a.svc.StartCore(a.dir); err != nil {
+			_ = a.applyTUNFile(!on)
+			return err
+		}
+	} else if a.tun != nil {
 		if err := a.tun.Set(on); err != nil {
 			_ = a.applyTUNFile(!on)
 			return err
@@ -298,9 +310,73 @@ func (a *App) applyTUNFile(on bool) error {
 	if err := tun.ApplyFile(path, on); err != nil {
 		return err
 	}
+	// The helper process reloads the core. Reloading here as well would
+	// start mihomo a second time in this process.
+	if a.serviceReady() {
+		return nil
+	}
 	if a.core != nil && a.core.Status().Running {
 		return a.core.Reload()
 	}
+	return nil
+}
+
+func (a *App) tunAllowed() bool {
+	if a.serviceReady() {
+		return true
+	}
+	return a.tun != nil && a.tun.Available()
+}
+
+func (a *App) serviceReady() bool {
+	if a == nil || a.svc == nil {
+		return false
+	}
+	st, err := a.svc.Status()
+	return err == nil && st.Installed
+}
+
+func (a *App) checkUnlock(name string) (string, string, int, error) {
+	client := unlock.ProxyClient(a.proxyEndpoint(), 0)
+	res, err := unlock.Check(name, client)
+	if err != nil {
+		return "", "", 0, err
+	}
+	return res.Status, res.Region, res.Delay, nil
+}
+
+// InstallService asks the helper manager to install the launchd daemon.
+// CI refuses. A successful install makes the TUN switch usable.
+func (a *App) InstallService() error {
+	if a == nil || a.svc == nil {
+		return service.ErrUnsupported
+	}
+	if err := a.svc.Install(); err != nil {
+		return err
+	}
+	a.refreshHome()
+	return nil
+}
+
+// UninstallService removes the helper and turns TUN off in the saved config.
+func (a *App) UninstallService() error {
+	if a == nil || a.svc == nil {
+		return service.ErrUnsupported
+	}
+	if err := a.svc.Uninstall(); err != nil {
+		return err
+	}
+	if a.settings.TUN {
+		a.settings.TUN = false
+		_ = a.applyTUNFile(false)
+		if a.tun != nil {
+			_ = a.tun.Set(false)
+		}
+		if a.store != nil {
+			_ = a.store.Save(a.settings)
+		}
+	}
+	a.refreshHome()
 	return nil
 }
 
@@ -336,8 +412,17 @@ func (a *App) refreshHome() {
 	h.ConfigDir = a.dir
 	h.SystemProxy = a.settings.SystemProxy
 	h.TUN = a.settings.TUN
-	if a.tun != nil {
-		h.TUNAvailable = a.tun.Available()
+	h.TUNAvailable = a.tunAllowed()
+	if a.serviceReady() {
+		a.model.ServiceInstalled = true
+		if h.RunMode == "" || h.RunMode == ui.RunSidecar {
+			h.RunMode = ui.RunService
+		}
+	} else {
+		a.model.ServiceInstalled = false
+		if h.RunMode == ui.RunService {
+			h.RunMode = ui.RunSidecar
+		}
 	}
 	if st.Running && !a.started.IsZero() {
 		h.Uptime = time.Since(a.started)
@@ -591,14 +676,17 @@ func (a *App) bindHooks() {
 				a.logs.Clear()
 			}
 		},
-		ImportURL:   a.ImportURL,
-		SavePrefs:   a.savePrefs,
-		ProbeSite:   a.probeSite,
-		SaveSites:   a.saveSites,
-		OpenDir:     a.openDir,
-		RestartCore: a.restartCore,
-		Copy:        writeClipboard,
-		Quit:        func() { mygo.App.Quit() },
+		ImportURL:        a.ImportURL,
+		SavePrefs:        a.savePrefs,
+		ProbeSite:        a.probeSite,
+		SaveSites:        a.saveSites,
+		InstallService:   a.InstallService,
+		UninstallService: a.UninstallService,
+		CheckUnlock:      a.checkUnlock,
+		OpenDir:          a.openDir,
+		RestartCore:      a.restartCore,
+		Copy:             writeClipboard,
+		Quit:             func() { mygo.App.Quit() },
 	}
 }
 

@@ -26,7 +26,7 @@ func Pages() []Page {
 		{ID: "connections", Path: "/connections", Nav: "连接", Title: "连接", Body: "空空如也"},
 		{ID: "rules", Path: "/rules", Nav: "规则", Title: "规则", Body: "空空如也"},
 		{ID: "logs", Path: "/logs", Nav: "日志", Title: "日志", Body: "空空如也"},
-		{ID: "test", Path: "/test", Nav: "测试", Title: "测试", Body: "测试全部"},
+		{ID: "test", Path: "/unlock", Nav: "测试", Title: "解锁测试", Body: "解锁测试"},
 		{ID: "settings", Path: "/settings", Nav: "设置", Title: "设置"},
 	}
 }
@@ -63,7 +63,7 @@ type HomeState struct {
 }
 
 // AppVersion is the Verge-compatible version shown with a leading v.
-const AppVersion = "0.1.0"
+const AppVersion = "0.2.0"
 
 func pageByPath(path string) (Page, bool) {
 	for _, p := range Pages() {

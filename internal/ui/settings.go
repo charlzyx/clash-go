@@ -39,18 +39,30 @@ func (m *Model) settingsPage(c *mygoui.Context, pal Palette) {
 func (m *Model) systemSettings(c *mygoui.Context, pal Palette) {
 	sectionCard(c, pal, "系统设置", func() {
 		m.switchLine(c, pal, "虚拟网卡模式", &m.Home.TUN, "tun-row", func(on bool) { m.setTUN(on) }, func() {
-			if textButton(c, pal, "齿轮", "TUN", "tun-gear") {
+			if !m.Home.TUNAvailable {
+				mygoui.Icon(c, iconWarn).Size(18, 18).TextColor(pal.Warning).Tooltip("TUN 模式需要安装服务模式或管理员模式").Label("tun-warn")
+			}
+			if gearButton(c, pal, "TUN", "tun-gear") {
 				m.Dialogs.TUN = true
 			}
 		})
 		m.switchLine(c, pal, "系统代理", &m.Home.SystemProxy, "sysproxy-row", func(on bool) { m.setProxy(on) }, func() {
-			if textButton(c, pal, "齿轮", "系统代理", "sysproxy-gear") {
+			if gearButton(c, pal, "系统代理", "sysproxy-gear") {
 				m.Dialogs.Sysproxy = true
 			}
 		})
 		m.switchLine(c, pal, "开机自启", &m.Prefs.AutoLaunch, "launch-row", func(bool) { m.savePrefs() }, nil)
 		m.switchLine(c, pal, "静默启动", &m.Prefs.SilentStart, "silent-row", func(bool) { m.savePrefs() }, func() {
-			helpMark(c, pal, "程序启动时以后台模式运行，不显示程序面板")
+			helpMark(c, pal, "help-silent", "程序启动时以后台模式运行，不显示程序面板")
+		})
+		status := "未安装"
+		if m.ServiceInstalled {
+			status = "已安装"
+		}
+		clickRow(c, pal, "服务模式", "service-row", m.Busy == "service", func() {
+			m.Dialogs.Service = true
+		}, func() {
+			mygoui.Text(c, status).FontSize(14)
 		})
 	})
 }
@@ -72,15 +84,15 @@ func (m *Model) switchLine(c *mygoui.Context, pal Palette, label string, on *boo
 func (m *Model) clashSettings(c *mygoui.Context, pal Palette) {
 	sectionCard(c, pal, "Clash 设置", func() {
 		m.switchLine(c, pal, "局域网连接", &m.Prefs.AllowLan, "allow-lan", func(bool) { m.savePrefs() }, func() {
-			if textButton(c, pal, "网卡", "网络接口", "lan-gear") {
+			if gearButton(c, pal, "网络接口", "lan-gear") {
 				m.Notice = "网络接口"
 			}
 		})
 		disabled := m.currentProfile() == nil || m.DNSAsk
 		mygoui.Row(c).FillWidth().Padding(5, 0).AlignItems(mygoui.Center).Gap(8).Children(func() {
 			mygoui.Text(c, "DNS 覆写").FontSize(14).Grow(1)
-			helpMark(c, pal, "DNS 覆写开关按订阅独立保存，仅对对应订阅生效。")
-			if textButton(c, pal, "齿轮", "DNS 覆写", "dns-gear") {
+			helpMark(c, pal, "help-dns", "DNS 覆写开关按订阅独立保存，仅对对应订阅生效。")
+			if gearButton(c, pal, "DNS 覆写", "dns-gear") {
 				m.Dialogs.DNS = true
 			}
 			sw := mygoui.Switch(c, &m.Prefs.DNSOverwrite).Disabled(disabled).Label("dns-overwrite")
@@ -95,7 +107,7 @@ func (m *Model) clashSettings(c *mygoui.Context, pal Palette) {
 		})
 		m.switchLine(c, pal, "IPv6", &m.Prefs.IPv6, "ipv6", func(bool) { m.savePrefs() }, nil)
 		m.switchLine(c, pal, "统一延迟", &m.Prefs.UnifiedDelay, "unified", func(bool) { m.savePrefs() }, func() {
-			helpMark(c, pal, "开启统一延迟时，会进行两次延迟测试，以消除连接握手等带来的不同类型节点的延迟差异")
+			helpMark(c, pal, "help-unified", "开启统一延迟时，会进行两次延迟测试，以消除连接握手等带来的不同类型节点的延迟差异")
 		})
 		m.labeledSelect(c, "日志等级", &m.Prefs.LogLevel, []string{"debug", "info", "warning", "error", "silent"}, "log-level")
 		clickRow(c, pal, "端口设置", "ports", m.Busy == "ports", func() { m.Dialogs.Ports = true }, func() {
@@ -109,7 +121,7 @@ func (m *Model) clashSettings(c *mygoui.Context, pal Palette) {
 		clickRow(c, pal, "网页界面", "webui", false, func() { m.Notice = "网页界面" }, nil)
 		clickRow(c, pal, "Clash 内核", "core-row", false, func() { m.Dialogs.Lite = false }, func() {
 			mygoui.Text(c, orDash(m.Home.Version)).FontSize(13)
-			if textButton(c, pal, "齿轮", "Clash 内核", "core-gear") {
+			if gearButton(c, pal, "Clash 内核", "core-gear") {
 				m.Notice = "Clash 内核 " + orDash(m.Home.Version)
 			}
 		})
@@ -189,11 +201,11 @@ func (m *Model) vergeBasic(c *mygoui.Context, pal Palette) {
 func (m *Model) vergeAdvanced(c *mygoui.Context, pal Palette) {
 	sectionCard(c, pal, "Verge 高级设置", func() {
 		clickRow(c, pal, "备份设置", "backup", false, func() { m.Dialogs.Backup = true }, func() {
-			helpMark(c, pal, "支持本地或 WebDAV 方式备份配置文件")
+			helpMark(c, pal, "help-backup", "支持本地或 WebDAV 方式备份配置文件")
 		})
 		clickRow(c, pal, "当前配置", "runtime-row", false, func() { m.Dialogs.Runtime = true }, nil)
 		clickRow(c, pal, "配置目录", "conf-dir", false, func() { m.openDir("config") }, func() {
-			helpMark(c, pal, "如果软件运行异常，备份并删除此文件夹下的所有文件，重启软件")
+			helpMark(c, pal, "help-conf", "如果软件运行异常，备份并删除此文件夹下的所有文件，重启软件")
 		})
 		clickRow(c, pal, "内核目录", "core-dir", false, func() { m.openDir("core") }, nil)
 		clickRow(c, pal, "日志目录", "log-dir", false, func() { m.openDir("logs") }, nil)
@@ -202,7 +214,7 @@ func (m *Model) vergeAdvanced(c *mygoui.Context, pal Palette) {
 		}, nil)
 		clickRow(c, pal, "开发者工具", "devtools", false, func() { m.Notice = "开发者工具" }, nil)
 		clickRow(c, pal, "轻量模式设置", "lite-row", false, func() { m.Dialogs.Lite = true }, func() {
-			helpMark(c, pal, "关闭 GUI 界面，仅保留内核运行")
+			helpMark(c, pal, "help-lite", "关闭 GUI 界面，仅保留内核运行")
 		})
 		clickRow(c, pal, "退出", "quit-row", false, func() {
 			if m.Hooks.Quit != nil {

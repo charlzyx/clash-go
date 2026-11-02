@@ -83,7 +83,7 @@ func BuildTrayMenu(s TraySnapshot, act TrayActions) *mygo.Menu {
 		items = append(items, modes...)
 	} else {
 		items = append(items, &mygo.MenuItem{
-			ID: "modes", Label: "出站模式（" + modeWord(mode) + "）", Submenu: modes,
+			ID: "modes", Label: "出站模式 (" + modeWord(mode) + ")", Submenu: modes,
 		})
 	}
 	items = append(items, mygo.Separator())
@@ -141,7 +141,7 @@ func BuildTrayMenu(s TraySnapshot, act TrayActions) *mygo.Menu {
 		}},
 		mygo.Separator(),
 		&mygo.MenuItem{
-			ID: "exit", Label: "退出",
+			ID: "exit", Label: "退出 ⌘Q",
 			Accelerator: exitAccel(),
 			Click: func(*mygo.MenuItem, *mygo.Window) {
 				if act.Quit != nil {
@@ -205,7 +205,7 @@ func groupItems(groups []TrayGroup, act TrayActions) []*mygo.MenuItem {
 }
 
 func tunItem(s TraySnapshot, act TrayActions) *mygo.MenuItem {
-	item := &mygo.MenuItem{ID: "tun", Label: "虚拟网卡", Type: mygo.MenuItemCheckbox, Checked: s.TUN, Disabled: !s.TUNAvailable}
+	item := &mygo.MenuItem{ID: "tun", Label: "TUN 模式", Type: mygo.MenuItemCheckbox, Checked: s.TUN, Disabled: !s.TUNAvailable}
 	item.Click = func(it *mygo.MenuItem, _ *mygo.Window) {
 		if !s.TUNAvailable {
 			it.SetChecked(false)

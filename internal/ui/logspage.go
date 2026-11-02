@@ -24,11 +24,13 @@ func (m *Model) logsPage(c *mygoui.Context, pal Palette) {
 	}
 	lines := clashlog.Filter(m.Logs.Lines, m.Logs.Level, m.Logs.Query, m.Logs.Desc)
 	m.page(c, pal, "日志", func() {
-		pause := "暂停"
+		pauseTip := "暂停"
+		mark := iconPause
 		if m.Logs.Paused {
-			pause = "继续"
+			pauseTip = "继续"
+			mark = iconPlay
 		}
-		if textButton(c, pal, pause, pause, "log-pause") {
+		if iconButton(c, pal, mark, pauseTip, "log-pause") {
 			m.Logs.Paused = !m.Logs.Paused
 			if m.Hooks.SetLogPaused != nil {
 				m.Hooks.SetLogPaused(m.Logs.Paused)
@@ -38,7 +40,7 @@ func (m *Model) logsPage(c *mygoui.Context, pal Palette) {
 		if m.Logs.Desc {
 			orderTip = "按时间正序"
 		}
-		if textButton(c, pal, "↕", orderTip, "log-order") {
+		if iconButton(c, pal, iconSort, orderTip, "log-order") {
 			m.Logs.Desc = !m.Logs.Desc
 		}
 		if filledButton(c, pal, "清除", "log-clear", true) {

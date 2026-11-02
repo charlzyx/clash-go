@@ -8,7 +8,6 @@ import (
 
 func TestTestPageLatencyEditAndOrder(t *testing.T) {
 	m := DemoModel()
-	m.Router.Replace("/test")
 	var probed []string
 	var saved [][]SiteTest
 	m.Hooks.ProbeSite = func(url string) (int, error) {
@@ -24,12 +23,12 @@ func TestTestPageLatencyEditAndOrder(t *testing.T) {
 		return nil
 	}
 
-	tt := renderModel(m, WindowWidth, WindowHeight, false)
-	if !tt.HasText("测试全部") || !tt.HasText("Apple") || !tt.HasText("GitHub") || !tt.HasText("128 ms") {
+	tt := renderModel(m, WindowWidth, 1600, false)
+	if !tt.HasText("全部测试") || !tt.HasText("Apple") || !tt.HasText("GitHub") || !tt.HasText("128 ms") {
 		t.Fatalf("test page texts %q", tt.Texts())
 	}
 
-	if err := tt.Click("page-site-Apple"); err != nil {
+	if err := tt.Click("site-Apple"); err != nil {
 		t.Fatal(err)
 	}
 	if m.Sites[0].Delay != -1 || m.Sites[0].Status == "testing" || !strings.Contains(m.Notice, "Apple 检测失败") {
@@ -39,7 +38,7 @@ func TestTestPageLatencyEditAndOrder(t *testing.T) {
 		t.Fatal("failed probe stayed on 测试中...")
 	}
 
-	if err := tt.Click("page-site-GitHub"); err != nil {
+	if err := tt.Click("site-GitHub"); err != nil {
 		t.Fatal(err)
 	}
 	if m.Sites[1].Delay != 42 || !tt.HasText("42 ms") {
@@ -47,7 +46,7 @@ func TestTestPageLatencyEditAndOrder(t *testing.T) {
 	}
 
 	probed = nil
-	if err := tt.Click("page-test-all"); err != nil {
+	if err := tt.Click("test-all"); err != nil {
 		t.Fatal(err)
 	}
 	if len(probed) != len(m.Sites) {
@@ -57,7 +56,7 @@ func TestTestPageLatencyEditAndOrder(t *testing.T) {
 		t.Fatalf("after test all %+v", m.Sites)
 	}
 
-	if err := tt.Click("page-test-new"); err != nil {
+	if err := tt.Click("test-new"); err != nil {
 		t.Fatal(err)
 	}
 	if !tt.HasText("新建测试") {
@@ -97,7 +96,7 @@ func TestTestPageLatencyEditAndOrder(t *testing.T) {
 		t.Fatalf("persist %+v", saved)
 	}
 
-	if err := tt.RightClick("page-site-Example"); err != nil {
+	if err := tt.RightClick("site-Example"); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.ChooseMenuItem("编辑"); err != nil {
@@ -119,11 +118,11 @@ func TestTestPageLatencyEditAndOrder(t *testing.T) {
 	}
 
 	before := append([]string(nil), siteNames(m)...)
-	from, ok := tt.Find("page-site-Apple")
+	from, ok := tt.Find("site-Apple")
 	if !ok {
 		t.Fatal("apple card")
 	}
-	to, ok := tt.Find("page-site-YouTube")
+	to, ok := tt.Find("site-YouTube")
 	if !ok {
 		t.Fatal("youtube card")
 	}
@@ -136,7 +135,7 @@ func TestTestPageLatencyEditAndOrder(t *testing.T) {
 		t.Fatal("reorder did not persist")
 	}
 
-	if err := tt.RightClick("page-site-Example 2"); err != nil {
+	if err := tt.RightClick("site-Example 2"); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.ChooseMenuItem("删除"); err != nil {
@@ -147,7 +146,7 @@ func TestTestPageLatencyEditAndOrder(t *testing.T) {
 	}
 
 	m.Hooks.SaveSites = func([]SiteTest) error { return errors.New("disk") }
-	if err := tt.Click("page-test-new"); err != nil {
+	if err := tt.Click("test-new"); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.Click("test-name"); err != nil {
@@ -185,6 +184,7 @@ func TestTUNToggleNeedsService(t *testing.T) {
 	}
 
 	m.Home.TUNAvailable = true
+	tt.Frame()
 	var got bool
 	m.Hooks.SetTUN = func(on bool) error {
 		got = on

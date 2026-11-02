@@ -34,6 +34,9 @@ type Hooks struct {
 	TestSite            func(url string) error
 	ProbeSite           func(url string) (int, error)
 	SaveSites           func([]SiteTest) error
+	InstallService      func() error
+	UninstallService    func() error
+	CheckUnlock         func(name string) (status, region string, ms int, err error)
 }
 
 // Model is the main window: a sidebar and the page it shows.
@@ -52,30 +55,34 @@ type Model struct {
 	IPAuto      bool
 	IPLeft      int
 
-	Groups         []ProxyGroup
-	Providers      []ProxyProvider
-	Chain          ChainState
-	ProxiesLoading bool
-	Profiles       []ProfileItem
-	CurrentProfile string
-	ProfileURL     string
-	ProfileBusy    bool
-	Batch          bool
-	ShowNextUpdate map[string]bool
-	Form           ProfileForm
-	DeleteUID      string
-	Prefs          Prefs
-	Notice         string
-	Busy           string
-	DNSAsk         bool
-	ProfileHasDNS  bool
-	ForceTray      bool
-	Dialogs        dialogSet
-	Hooks          Hooks
-	Conns          ConnView
-	Rules          RuleView
-	Logs           LogView
-	TestForm       TestForm
+	Groups           []ProxyGroup
+	Providers        []ProxyProvider
+	Chain            ChainState
+	ProxiesLoading   bool
+	Profiles         []ProfileItem
+	CurrentProfile   string
+	ProfileURL       string
+	ProfileBusy      bool
+	Batch            bool
+	ShowNextUpdate   map[string]bool
+	Form             ProfileForm
+	DeleteUID        string
+	Prefs            Prefs
+	Notice           string
+	Busy             string
+	DNSAsk           bool
+	ProfileHasDNS    bool
+	ForceTray        bool
+	Dialogs          dialogSet
+	Hooks            Hooks
+	Conns            ConnView
+	Rules            RuleView
+	Logs             LogView
+	TestForm         TestForm
+	TunStack         string
+	ServiceInstalled bool
+	ServiceRunning   bool
+	Unlocks          []UnlockItem
 }
 
 type dialogSet struct {
@@ -88,6 +95,7 @@ type dialogSet struct {
 	Ports    bool
 	Sysproxy bool
 	TUN      bool
+	Service  bool
 	WebDAV   bool
 	DNS      bool
 	Runtime  bool
@@ -111,6 +119,7 @@ func NewModel(home HomeState) *Model {
 		Prefs:          DefaultPrefs(),
 		IPLeft:         30,
 		ShowNextUpdate: map[string]bool{},
+		Unlocks:        DefaultUnlocks(),
 	}
 	m.normalize()
 	return m
@@ -130,6 +139,12 @@ func (m *Model) normalize() {
 	}
 	if m.ShowNextUpdate == nil {
 		m.ShowNextUpdate = map[string]bool{}
+	}
+	if m.TunStack == "" {
+		m.TunStack = "Mips"
+	}
+	if m.Unlocks == nil {
+		m.Unlocks = DefaultUnlocks()
 	}
 }
 
@@ -180,9 +195,9 @@ func (m *Model) View(c *mygoui.Context) {
 				case "/logs":
 					r.Title("日志")
 					m.logsPage(c, pal)
-				case "/test":
-					r.Title("测试")
-					m.testPage(c, pal)
+				case "/unlock", "/test":
+					r.Title("解锁测试")
+					m.unlockPage(c, pal)
 				default:
 					page, ok := pageByPath(path)
 					if !ok {

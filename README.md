@@ -24,9 +24,20 @@ go tool mygo build -platform darwin/arm64
 `go tool mygo build` 在 macOS 上写出：
 
 - `build/darwin-arm64/Clash Go.app`（`Info.plist`、`resources/icon.png` 生成的图标、ad-hoc 签名）
-- `build/darwin-arm64/clash-go-0.1.0-arm64.dmg`
+- `build/darwin-arm64/clash-go-0.2.0-arm64.dmg`
+- `build/darwin-arm64/Clash-Go-0.2.0-arm64.zip`（Release 工作流把 `.app` 打成 zip）
 
 签名身份在 `mygo.json` 的 `macos.signingIdentity`，目前是 `-`（ad-hoc）。别的 Mac 上 Gatekeeper 会拦住这个包，正式分发要换成 Developer ID。
+
+## 安装
+
+从 GitHub Release 下载 `Clash-Go-0.2.0-arm64.zip` 或 `clash-go-0.2.0-arm64.dmg`（darwin arm64）。zip 里是已经 ad-hoc 签名的 `Clash Go.app`。这个包没有 Developer ID，第一次打开会被系统拦住。解压或拖进「应用程序」之后，在终端执行：
+
+```sh
+xattr -cr "/Applications/Clash Go.app"
+```
+
+然后再打开。`xattr -cr` 去掉隔离属性，不代替正式签名。
 
 窗口内容区是 940×700，最小 520×520，和 Clash Verge Rev 的默认窗口一致。`UseContentSize` 让这两个数字指内容区，截图也是这个尺寸；系统标题栏在内容区外面。
 
@@ -73,4 +84,5 @@ go tool cover -func=coverage.out | tail -n 1
 - **M1（当前）** 骨架、内嵌内核、占位页面、托盘占位、macOS arm64 的 `.app` / `.dmg`。
 - **M2** 内核配置重载、订阅、代理页、真正的系统代理、托盘状态。
 - **M3** 连接、规则、日志、测试、设置页。
-- **M4** 测试页、TUN 配置（无服务助手时拒绝开启；CI 不打开 TUN）。自动更新仍在后面。
+- **M4** 测试页、TUN 配置（无服务助手时拒绝开启；CI 不打开 TUN）。
+- **M5** 服务模式（launchd 助手，安装后 TUN 可用）、v0.2.0 的 zip 与 dmg。自动更新仍在后面。

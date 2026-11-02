@@ -15,6 +15,23 @@ const (
 	DefaultDNSHijack = "any:53"
 )
 
+// StackLabel is the tun dialog name for a yaml stack value.
+// mihomo v1.19.33 accepts "mips" and reports it as "Mips".
+func StackLabel(yaml string) string {
+	switch yaml {
+	case "system", "System":
+		return "System"
+	case "gvisor", "gVisor":
+		return "gVisor"
+	case "mixed", "Mixed":
+		return "Mixed"
+	case "mips", "Mips":
+		return "Mips"
+	default:
+		return "Mips"
+	}
+}
+
 // ErrNeedService is returned when TUN cannot be turned on because the
 // process is not allowed to open the device.
 var ErrNeedService = fmt.Errorf("TUN 模式需要服务模式，请先安装服务")

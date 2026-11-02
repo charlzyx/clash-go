@@ -260,7 +260,7 @@ func (m *Model) networkCard(c *mygoui.Context, pal Palette) mygoui.Element {
 		desc, tip := m.networkDesc()
 		mygoui.Row(c).Padding(8).Radius(4).AlignItems(mygoui.Center).Label("net-desc").Children(func() {
 			mygoui.Text(c, desc).FontSize(12).TextColor(pal.TextMuted).Grow(1)
-			helpMark(c, pal, tip)
+			helpMark(c, pal, "help-net", tip)
 		})
 		on := m.Home.SystemProxy
 		label := "系统代理"
@@ -401,62 +401,28 @@ func (m *Model) trafficCard(c *mygoui.Context, pal Palette) mygoui.Element {
 
 func (m *Model) testCard(c *mygoui.Context, pal Palette) mygoui.Element {
 	return card(c, pal, "网站测试", "测", ToneInfo, func() {
-		if textButton(c, pal, "全部测试", "全部测试", "test-all") {
-			m.testAll()
+		busy := m.sitesBusy()
+		label := "全部测试"
+		if busy {
+			label = "测试中..."
+		}
+		if textButton(c, pal, label, "测试全部", "test-all") && !busy {
+			m.probeAll()
 		}
 		if textButton(c, pal, "新建", "新建测试", "test-new") {
-			m.Sites = append(m.Sites, SiteTest{Name: "新建", URL: "https://example.com"})
+			m.TestForm = TestForm{Open: true}
 		}
 	}, func() {
+		if len(m.Sites) == 0 {
+			emptyState(c, pal)
+			return
+		}
 		mygoui.Grid(c).Columns(4).Gap(8).Children(func() {
 			for i := range m.Sites {
-				i := i
-				s := m.Sites[i]
-				b := mygoui.ButtonBase(c.Key("site-" + s.Name)).Height(72).Radius(8).Padding(8).Label("site-" + s.Name)
-				b.Border(1, pal.Divider).Drag(i)
-				if from, ok := mygoui.Drop[int](b); ok {
-					m.Sites = Move(m.Sites, from, i)
-				}
-				b.Children(func() {
-					mygoui.Text(c, s.Name).FontSize(13).Bold()
-					mygoui.Text(c, siteStatus(s.Status)).FontSize(11).TextColor(pal.TextMuted)
-				})
-				if b.Clicked() {
-					m.testOne(i)
-				}
+				m.testTile(c, pal, i)
 			}
 		})
 	})
-}
-
-func siteStatus(s string) string {
-	switch s {
-	case "testing":
-		return "测试中"
-	case "ok":
-		return "成功"
-	case "fail":
-		return "失败"
-	default:
-		return "未测试"
-	}
-}
-
-func (m *Model) testOne(i int) {
-	if i < 0 || i >= len(m.Sites) {
-		return
-	}
-	failed := false
-	if m.Hooks.TestSite != nil {
-		failed = m.Hooks.TestSite(m.Sites[i].URL) != nil
-	}
-	m.Sites[i].Status = FinishTest("testing", failed)
-}
-
-func (m *Model) testAll() {
-	for i := range m.Sites {
-		m.testOne(i)
-	}
 }
 
 func (m *Model) ipCard(c *mygoui.Context, pal Palette) mygoui.Element {

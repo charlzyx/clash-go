@@ -54,11 +54,6 @@ func textLink(c *mygoui.Context, pal Palette, label, tip, id string) bool {
 	return b.Clicked()
 }
 
-// helpMark is the tooltip question mark used on settings rows.
-func helpMark(c *mygoui.Context, pal Palette, tip string) {
-	mygoui.Text(c, "?").FontSize(12).Tooltip(tip).TextColor(pal.TextMuted)
-}
-
 // segmentButtons draws labels as one joined group. The current id is filled.
 func segmentButtons(c *mygoui.Context, pal Palette, group string, items []struct{ id, label string }, current string, pick func(string)) {
 	mygoui.Row(c).Gap(0).Shrink(0).Label(group).Children(func() {
