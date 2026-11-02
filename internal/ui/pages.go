@@ -23,9 +23,9 @@ func Pages() []Page {
 		{ID: "home", Path: "/home", Nav: "首页", Title: "首页"},
 		{ID: "proxies", Path: "/proxies", Nav: "代理", Title: "代理组"},
 		{ID: "subscriptions", Path: "/profile", Nav: "订阅", Title: "订阅"},
-		{ID: "connections", Path: "/connections", Nav: "连接", Title: "连接", Body: "活动连接会显示在这里。"},
-		{ID: "rules", Path: "/rules", Nav: "规则", Title: "规则", Body: "分流规则会显示在这里。"},
-		{ID: "logs", Path: "/logs", Nav: "日志", Title: "日志", Body: "内核日志会显示在这里。"},
+		{ID: "connections", Path: "/connections", Nav: "连接", Title: "连接", Body: "空空如也"},
+		{ID: "rules", Path: "/rules", Nav: "规则", Title: "规则", Body: "空空如也"},
+		{ID: "logs", Path: "/logs", Nav: "日志", Title: "日志", Body: "空空如也"},
 		{ID: "test", Path: "/test", Nav: "测试", Title: "测试", Body: "连通性测试会显示在这里。"},
 		{ID: "settings", Path: "/settings", Nav: "设置", Title: "设置"},
 	}

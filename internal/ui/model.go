@@ -5,23 +5,32 @@ import (
 	"time"
 
 	mygoui "github.com/egoist/mygo/ui"
+
+	"github.com/charlzyx/clash-go/internal/rules"
 )
 
 // Hooks are the app services a page calls. Nil hooks update the model only,
 // which is what the headless tests do.
 type Hooks struct {
-	SetSystemProxy func(on bool) error
-	SetTUN         func(on bool) error
-	SetMode        func(mode string) error
-	SelectProxy    func(group, node string) error
-	ImportURL      func(url string) error
-	SavePrefs      func(Prefs) error
-	OpenDir        func(kind string)
-	RestartCore    func() error
-	BrowseScript   func() (string, error)
-	Copy           func(text string)
-	Quit           func()
-	TestSite       func(url string) error
+	SetSystemProxy      func(on bool) error
+	SetTUN              func(on bool) error
+	SetMode             func(mode string) error
+	SelectProxy         func(group, node string) error
+	CloseConnection     func(id string) error
+	CloseAllConnections func() error
+	ClearClosed         func()
+	RefreshRules        func() ([]rules.Item, []rules.Provider)
+	UpdateRuleProvider  func(name string) error
+	SetLogPaused        func(paused bool)
+	ClearLogs           func()
+	ImportURL           func(url string) error
+	SavePrefs           func(Prefs) error
+	OpenDir             func(kind string)
+	RestartCore         func() error
+	BrowseScript        func() (string, error)
+	Copy                func(text string)
+	Quit                func()
+	TestSite            func(url string) error
 }
 
 // Model is the main window: a sidebar and the page it shows.
@@ -60,6 +69,9 @@ type Model struct {
 	ForceTray      bool
 	Dialogs        dialogSet
 	Hooks          Hooks
+	Conns          ConnView
+	Rules          RuleView
+	Logs           LogView
 }
 
 type dialogSet struct {
@@ -126,6 +138,9 @@ func (m *Model) View(c *mygoui.Context) {
 		return
 	}
 	m.normalize()
+	if m.Router.Path() != "/rules" {
+		m.Rules.Loaded = false
+	}
 	m.flushFilters(c.Now())
 	dark := c.Theme().Dark
 	switch m.Prefs.ThemeMode {
@@ -155,6 +170,15 @@ func (m *Model) View(c *mygoui.Context) {
 				case "/settings":
 					r.Title("设置")
 					m.settingsPage(c, pal)
+				case "/connections":
+					r.Title("连接")
+					m.connectionsPage(c, pal)
+				case "/rules":
+					r.Title("规则")
+					m.rulesPage(c, pal)
+				case "/logs":
+					r.Title("日志")
+					m.logsPage(c, pal)
 				default:
 					page, ok := pageByPath(path)
 					if !ok {

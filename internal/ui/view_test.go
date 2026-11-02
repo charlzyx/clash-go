@@ -610,6 +610,20 @@ func TestPageScreenshots(t *testing.T) {
 			if err := writePNG(path, img); err != nil {
 				t.Fatal(err)
 			}
+			if p.ID == "connections" {
+				list := DemoModel()
+				list.Conns.Layout = "list"
+				if theme.dark {
+					list.Prefs.ThemeMode = "dark"
+				} else {
+					list.Prefs.ThemeMode = "light"
+				}
+				list.Router.Replace("/connections")
+				lt := renderModel(list, WindowWidth, WindowHeight, theme.dark)
+				if err := writePNG(filepath.Join(dir, "connections-list-"+theme.name+".png"), lt.Image()); err != nil {
+					t.Fatal(err)
+				}
+			}
 		}
 		ct := NewCollapsedTester(DemoModel(), theme.dark)
 		requireCollapsedBrand(t, ct)

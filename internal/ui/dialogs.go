@@ -25,6 +25,8 @@ func (m *Model) overlay(c *mygoui.Context, pal Palette) {
 	m.simpleDialog(c, pal, &m.Dialogs.Lite, "轻量模式设置", m.liteBody)
 	m.simpleDialog(c, pal, &m.Dialogs.WebDAV, "WebDAV", m.webdavBody)
 	m.dnsConfirm(c, pal)
+	m.connColumnDialog(c, pal)
+	m.ruleProviderDialog(c, pal)
 }
 
 func (m *Model) homeSettingsDialog(c *mygoui.Context, pal Palette) {

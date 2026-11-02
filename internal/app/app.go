@@ -13,6 +13,8 @@ import (
 
 	"github.com/charlzyx/clash-go/internal/appconfig"
 	"github.com/charlzyx/clash-go/internal/appdir"
+	"github.com/charlzyx/clash-go/internal/clashlog"
+	"github.com/charlzyx/clash-go/internal/conn"
 	"github.com/charlzyx/clash-go/internal/core"
 	"github.com/charlzyx/clash-go/internal/profile"
 	"github.com/charlzyx/clash-go/internal/sysproxy"
@@ -50,6 +52,11 @@ type App struct {
 
 	win  *mygo.Window
 	tray *mygo.Tray
+
+	connTrack conn.Tracker
+	logs      *clashlog.Buffer
+	stopLogs  func()
+	liveStop  chan struct{}
 }
 
 // New checks options and fills the M1 defaults. It does not start the
@@ -316,16 +323,31 @@ func (a *App) bindHooks() {
 		return
 	}
 	a.model.Hooks = ui.Hooks{
-		SetSystemProxy: a.SetSystemProxy,
-		SetTUN:         a.SetTUN,
-		SetMode:        a.SetMode,
-		SelectProxy:    a.SelectProxy,
-		ImportURL:      a.ImportURL,
-		SavePrefs:      a.savePrefs,
-		OpenDir:        a.openDir,
-		RestartCore:    a.restartCore,
-		Copy:           writeClipboard,
-		Quit:           func() { mygo.App.Quit() },
+		SetSystemProxy:      a.SetSystemProxy,
+		SetTUN:              a.SetTUN,
+		SetMode:             a.SetMode,
+		SelectProxy:         a.SelectProxy,
+		CloseConnection:     a.closeConnection,
+		CloseAllConnections: a.closeAllConnections,
+		ClearClosed:         func() { a.connTrack.ClearClosed() },
+		RefreshRules:        a.refreshRules,
+		UpdateRuleProvider:  a.updateRuleProvider,
+		SetLogPaused: func(on bool) {
+			if a.logs != nil {
+				a.logs.SetPaused(on)
+			}
+		},
+		ClearLogs: func() {
+			if a.logs != nil {
+				a.logs.Clear()
+			}
+		},
+		ImportURL:   a.ImportURL,
+		SavePrefs:   a.savePrefs,
+		OpenDir:     a.openDir,
+		RestartCore: a.restartCore,
+		Copy:        writeClipboard,
+		Quit:        func() { mygo.App.Quit() },
 	}
 }
 
