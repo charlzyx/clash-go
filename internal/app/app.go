@@ -319,6 +319,7 @@ func (a *App) bindHooks() {
 		SetSystemProxy: a.SetSystemProxy,
 		SetTUN:         a.SetTUN,
 		SetMode:        a.SetMode,
+		SelectProxy:    a.SelectProxy,
 		ImportURL:      a.ImportURL,
 		SavePrefs:      a.savePrefs,
 		OpenDir:        a.openDir,
@@ -326,6 +327,14 @@ func (a *App) bindHooks() {
 		Copy:           writeClipboard,
 		Quit:           func() { mygo.App.Quit() },
 	}
+}
+
+// SelectProxy writes the choice into mihomo's selector when the kernel is running.
+func (a *App) SelectProxy(group, node string) error {
+	if a == nil || a.core == nil || !a.core.Status().Running {
+		return nil
+	}
+	return a.core.Select(group, node)
 }
 
 // SetMode writes the profile mode and reloads the kernel when it is running.

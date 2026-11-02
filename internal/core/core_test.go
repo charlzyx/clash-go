@@ -160,6 +160,61 @@ rules:
 	}
 }
 
+func TestSelectWritesSelector(t *testing.T) {
+	if err := New().Select("PROXY", "DIRECT"); err == nil {
+		t.Fatal("Select on a stopped core succeeded")
+	}
+	dir := t.TempDir()
+	mixed := freePort(t)
+	api := freePort(t)
+	cfg := fmt.Sprintf(`mixed-port: %d
+socks-port: 0
+port: 0
+redir-port: 0
+tproxy-port: 0
+allow-lan: false
+mode: rule
+log-level: error
+ipv6: false
+find-process-mode: off
+geo-auto-update: false
+external-controller: 127.0.0.1:%d
+dns:
+  enable: false
+proxies:
+  - {name: n1, type: direct}
+  - {name: n2, type: direct}
+proxy-groups:
+  - {name: PROXY, type: select, proxies: [n1, n2, DIRECT]}
+rules:
+  - MATCH,PROXY
+`, mixed, api)
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(cfg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := New()
+	if err := c.Start(dir); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	t.Cleanup(func() { _ = c.Stop() })
+	if err := c.Select("PROXY", "n2"); err != nil {
+		t.Fatal(err)
+	}
+	now, err := c.Selected("PROXY")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if now != "n2" {
+		t.Fatalf("selected %q, want n2", now)
+	}
+	if err := c.Select("PROXY", "missing"); err == nil {
+		t.Fatal("missing node was accepted")
+	}
+	if err := c.Select("DIRECT", "n1"); err == nil {
+		t.Fatal("DIRECT accepted a selector write")
+	}
+}
+
 func TestReloadWhenStopped(t *testing.T) {
 	if err := New().Reload(); err == nil {
 		t.Fatal("Reload on a stopped core succeeded")

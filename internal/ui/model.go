@@ -13,6 +13,7 @@ type Hooks struct {
 	SetSystemProxy func(on bool) error
 	SetTUN         func(on bool) error
 	SetMode        func(mode string) error
+	SelectProxy    func(group, node string) error
 	ImportURL      func(url string) error
 	SavePrefs      func(Prefs) error
 	OpenDir        func(kind string)

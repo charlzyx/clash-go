@@ -389,13 +389,39 @@ func (m *Model) nodeRow(c *mygoui.Context, pal Palette, g *ProxyGroup, n ProxyNo
 			m.addChain(n)
 			return
 		}
-		g.Now = n.Name
-		if m.Home.Node.Group == g.Name || m.Home.Node.Group == "" {
-			m.Home.Node.Name = n.Name
-			m.Home.Node.Type = n.Type
-			m.Home.Node.Delay = n.Delay
-			m.Home.Node.Group = g.Name
-		}
+		m.selectNode(g, n)
+	}
+}
+
+func (m *Model) selectNode(g *ProxyGroup, n ProxyNode) {
+	if g == nil {
+		return
+	}
+	prevNow := g.Now
+	prevNode := m.Home.Node
+	g.Now = n.Name
+	if m.Home.Node.Group == g.Name || m.Home.Node.Group == "" {
+		m.Home.Node.Name = n.Name
+		m.Home.Node.Type = n.Type
+		m.Home.Node.Delay = n.Delay
+		m.Home.Node.Group = g.Name
+	}
+	if !selectorGroup(g.Type) || m.Hooks.SelectProxy == nil {
+		return
+	}
+	if err := m.Hooks.SelectProxy(g.Name, n.Name); err != nil {
+		g.Now = prevNow
+		m.Home.Node = prevNode
+		m.Notice = err.Error()
+	}
+}
+
+func selectorGroup(kind string) bool {
+	switch strings.ToLower(kind) {
+	case "selector", "select":
+		return true
+	default:
+		return false
 	}
 }
 

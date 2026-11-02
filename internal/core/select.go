@@ -1,0 +1,47 @@
+package core
+
+import (
+	"errors"
+	"fmt"
+
+	"github.com/metacubex/mihomo/adapter/outboundgroup"
+	"github.com/metacubex/mihomo/tunnel"
+)
+
+// Select writes node into the named selector group. The kernel must be running.
+func (c *Core) Select(group, node string) error {
+	sel, err := c.selector(group)
+	if err != nil {
+		return err
+	}
+	return sel.Set(node)
+}
+
+// Selected returns the node the selector currently uses.
+func (c *Core) Selected(group string) (string, error) {
+	sel, err := c.selector(group)
+	if err != nil {
+		return "", err
+	}
+	return sel.Now(), nil
+}
+
+func (c *Core) selector(group string) (*outboundgroup.Selector, error) {
+	if c == nil {
+		return nil, errors.New("core is nil")
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.running {
+		return nil, errors.New("core is not running")
+	}
+	p, ok := tunnel.Proxies()[group]
+	if !ok || p == nil {
+		return nil, fmt.Errorf("proxy group %s not found", group)
+	}
+	sel, ok := p.Adapter().(*outboundgroup.Selector)
+	if !ok || sel == nil {
+		return nil, fmt.Errorf("%s is not a selector", group)
+	}
+	return sel, nil
+}

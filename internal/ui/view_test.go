@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"unicode"
 
 	mygoui "github.com/egoist/mygo/ui"
 )
@@ -620,6 +621,100 @@ func TestPageScreenshots(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+}
+
+func TestProxySelectWritesSelector(t *testing.T) {
+	m := DemoModel()
+	m.Router.Replace("/proxies")
+	var gotGroup, gotNode string
+	var calls int
+	m.Hooks.SelectProxy = func(group, node string) error {
+		calls++
+		gotGroup, gotNode = group, node
+		return nil
+	}
+	tt := renderModel(m, WindowWidth, WindowHeight, false)
+	if !hasExactText(tt, "代理组") {
+		t.Fatal("proxies title")
+	}
+	if err := tt.Click("node-Proxy-香港 02"); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 || gotGroup != "Proxy" || gotNode != "香港 02" {
+		t.Fatalf("selector write %d %s %s", calls, gotGroup, gotNode)
+	}
+	if m.Groups[0].Now != "香港 02" {
+		t.Fatalf("selected now %q", m.Groups[0].Now)
+	}
+	if m.Home.Node.Name != "香港 02" || m.Home.Node.Group != "Proxy" {
+		t.Fatalf("home node %+v", m.Home.Node)
+	}
+	// URLTest updates the row and does not write a selector.
+	if err := tt.Click("node-Auto-台湾 01"); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("urltest wrote the selector, calls %d", calls)
+	}
+	if m.Groups[1].Now != "台湾 01" {
+		t.Fatalf("urltest now %q", m.Groups[1].Now)
+	}
+
+	m.Hooks.SelectProxy = func(string, string) error { return errSelect }
+	if err := tt.Click("node-Proxy-香港 01"); err != nil {
+		t.Fatal(err)
+	}
+	if m.Groups[0].Now != "香港 02" || m.Notice != errSelect.Error() {
+		t.Fatalf("failed select now %q notice %q", m.Groups[0].Now, m.Notice)
+	}
+}
+
+var errSelect = errString("selector rejected")
+
+type errString string
+
+func (e errString) Error() string { return string(e) }
+
+func TestTwoCharacterButtonsHaveNoSpacer(t *testing.T) {
+	want := []string{"订阅", "代理", "首页", "连接", "规则", "日志", "测试", "设置", "导入", "新建", "更新", "手册"}
+	for _, path := range []string{"/home", "/proxies", "/profile", "/settings"} {
+		m := DemoModel()
+		if path != "/home" {
+			m.Router.Replace(path)
+		}
+		tt := renderModel(m, WindowWidth, WindowHeight, false)
+		for _, s := range tt.Texts() {
+			if spacedHanPair(s) {
+				t.Errorf("%s shows %q", path, s)
+			}
+		}
+		if path == "/home" {
+			for _, label := range want[:2] {
+				if !hasExactText(tt, label) {
+					t.Errorf("home missing exact %q", label)
+				}
+			}
+		}
+	}
+	m := NewModel(demoHome())
+	tt := renderModel(m, WindowWidth, WindowHeight, false)
+	for _, label := range want {
+		spaced := []rune(label)
+		if len(spaced) == 2 {
+			bad := string([]rune{spaced[0], ' ', spaced[1]})
+			if tt.HasText(bad) {
+				t.Errorf("home contains %q", bad)
+			}
+		}
+	}
+}
+
+func spacedHanPair(s string) bool {
+	r := []rune(s)
+	if len(r) != 3 || r[1] != ' ' {
+		return false
+	}
+	return unicode.Is(unicode.Han, r[0]) && unicode.Is(unicode.Han, r[2])
 }
 
 func TestProfileDividerStaysWithCards(t *testing.T) {
