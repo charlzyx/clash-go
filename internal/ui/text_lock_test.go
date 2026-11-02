@@ -92,7 +92,7 @@ func spacedPair(s string) string {
 func TestSettingsValueSpaceChevron(t *testing.T) {
 	tt := settingsFrame(t)
 	trails := chevronTrails(t, tt)
-	want := []string{"7897", "CORS", "网页界面", "齿轮"}
+	want := []string{"未安装", "7897", "CORS", "网页界面", "齿轮"}
 	if runtime.GOOS == "windows" {
 		want = append(want, "UWP 工具")
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/charlzyx/clash-go/internal/appconfig"
 	"github.com/charlzyx/clash-go/internal/appdir"
 	"github.com/charlzyx/clash-go/internal/core"
+	"github.com/charlzyx/clash-go/internal/service"
 	"github.com/charlzyx/clash-go/internal/sitetest"
 	"github.com/charlzyx/clash-go/internal/sysproxy"
 	"github.com/charlzyx/clash-go/internal/tun"
@@ -209,6 +210,57 @@ func TestSetTUNRefusesWithoutHelper(t *testing.T) {
 	}
 	if got.TUN {
 		t.Fatal("settings stored TUN")
+	}
+}
+
+func TestServiceMakesTUNUsable(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(path, []byte("mode: rule\nmixed-port: 7897\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	svc := &service.Memory{}
+	blocked := &fakeTUN{unavailable: true}
+	a := New(Options{
+		Dirs:    appdir.Fixed(dir),
+		Store:   appconfig.NewMemory(dir),
+		Proxy:   sysproxy.NewMemory(),
+		TUN:     blocked,
+		Service: svc,
+		Core:    core.New(),
+	})
+	a.dir = dir
+	a.model = ui.NewModel(ui.HomeState{})
+	if err := a.SetTUN(true); err == nil || a.model.Notice != tun.ErrNeedService.Error() {
+		t.Fatalf("without service %v notice %q", err, a.model.Notice)
+	}
+	if err := a.InstallService(); err != nil {
+		t.Fatal(err)
+	}
+	if !a.Model().ServiceInstalled || !a.Home().TUNAvailable {
+		t.Fatalf("after install %+v", a.Home())
+	}
+	if err := a.SetTUN(true); err != nil {
+		t.Fatal(err)
+	}
+	if svc.Starts != 1 || svc.Dir != dir || !a.Home().TUN {
+		t.Fatalf("starts %d dir %q tun %v", svc.Starts, svc.Dir, a.Home().TUN)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), "enable: true") || !strings.Contains(string(body), "mips") {
+		t.Fatalf("config %s", body)
+	}
+	if a.core.Status().Running {
+		t.Fatal("service path started mihomo in the app process")
+	}
+	if err := a.UninstallService(); err != nil {
+		t.Fatal(err)
+	}
+	if svc.Installed || a.Home().TUN || a.Home().TUNAvailable {
+		t.Fatalf("after uninstall home %+v installed %v", a.Home(), svc.Installed)
 	}
 }
 

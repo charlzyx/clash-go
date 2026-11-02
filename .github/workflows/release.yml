@@ -26,24 +26,28 @@ jobs:
 
       # mygo.json "main" is ./cmd/clash-go. The repository root has no Go files,
       # so a default `go list .` fails.
-      - name: Build app and disk image
-        run: go tool mygo build -platform darwin/arm64
-
-      - name: Show bundle metadata
+      - name: Build app, helper, zip, and disk image
         run: |
+          go tool mygo build -platform darwin/arm64
           app="build/darwin-arm64/Clash Go.app"
-          plutil -p "$app/Contents/Info.plist"
+          go build -o "$app/Contents/MacOS/clash-go-service" ./cmd/clash-go-service
+          # Ad-hoc signature. "-" is the identity in mygo.json as well.
+          codesign --force --sign - "$app/Contents/MacOS/clash-go-service"
+          codesign --force --deep --sign - "$app"
           codesign --verify --verbose=2 "$app"
-          codesign -dv "$app"
+          ver=$(plutil -extract CFBundleShortVersionString raw -o - "$app/Contents/Info.plist")
+          want=$(jq -r .version mygo.json)
+          test "$ver" = "$want"
+          ditto -c -k --keepParent "$app" "build/darwin-arm64/Clash-Go-${ver}-arm64.zip"
           ls -lh build/darwin-arm64
 
-      - name: Upload app and dmg
+      - name: Upload zip and dmg
         uses: actions/upload-artifact@v4
         with:
           name: clash-go-darwin-arm64
           path: |
             build/darwin-arm64/*.dmg
-            build/darwin-arm64/*.app
+            build/darwin-arm64/*.zip
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -56,5 +60,5 @@ jobs:
             gh release create "$tag" --repo "$GITHUB_REPOSITORY" \
               --title "$tag" --generate-notes
           fi
-          gh release upload "$tag" build/darwin-arm64/*.dmg \
+          gh release upload "$tag" build/darwin-arm64/*.dmg build/darwin-arm64/*.zip \
             --repo "$GITHUB_REPOSITORY" --clobber

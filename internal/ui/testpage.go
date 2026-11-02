@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charlzyx/clash-go/internal/sitetest"
+
 	mygoui "github.com/egoist/mygo/ui"
 )
 
@@ -14,33 +16,6 @@ type TestForm struct {
 	Name string
 	URL  string
 	Icon string
-}
-
-func (m *Model) testPage(c *mygoui.Context, pal Palette) {
-	busy := m.sitesBusy()
-	m.page(c, pal, "测试", func() {
-		label := "测试全部"
-		if busy {
-			label = "测试中..."
-		}
-		b := filledButton(c, pal, label, "page-test-all", !busy && len(m.Sites) > 0)
-		if b && !busy && len(m.Sites) > 0 {
-			m.probeAll()
-		}
-		if textButton(c, pal, "新建", "新建测试", "page-test-new") {
-			m.TestForm = TestForm{Open: true}
-		}
-	}, func() {
-		if len(m.Sites) == 0 {
-			emptyState(c, pal)
-			return
-		}
-		mygoui.Grid(c).Columns(4).Gap(8).Padding(16).Children(func() {
-			for i := range m.Sites {
-				m.testTile(c, pal, i)
-			}
-		})
-	})
 }
 
 func (m *Model) sitesBusy() bool {
@@ -54,7 +29,7 @@ func (m *Model) sitesBusy() bool {
 
 func (m *Model) testTile(c *mygoui.Context, pal Palette, i int) {
 	s := m.Sites[i]
-	b := mygoui.ButtonBase(c.Key("page-site-" + s.UID)).MinHeight(120).Radius(8).Padding(8).Label("page-site-" + s.Name)
+	b := mygoui.ButtonBase(c.Key("site-" + s.UID)).Height(88).Radius(8).Padding(8).Label("site-" + s.Name)
 	b.Background(pal.Card).Border(1, pal.Divider).Drag(i)
 	if from, ok := mygoui.Drop[int](b); ok {
 		m.Sites = Move(m.Sites, from, i)
@@ -135,6 +110,10 @@ func (m *Model) probeOne(i int) {
 	if err != nil {
 		m.Sites[i].Delay = -1
 		m.Sites[i].Status = "fail"
+		if sitetest.IsTimeout(err) {
+			m.Notice = "检测超时或失败"
+			return
+		}
 		m.Notice = m.Sites[i].Name + " 检测失败"
 		return
 	}

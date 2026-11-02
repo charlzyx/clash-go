@@ -476,7 +476,7 @@ func TestSettingsSections(t *testing.T) {
 	m := DemoModel()
 	m.Router.Replace("/settings")
 	tt := renderModel(m, WindowWidth, WindowHeight, false)
-	for _, title := range []string{"系统设置", "Clash 设置", "Verge 基础设置", "Verge 高级设置", "简体中文", "浅色", "深色", "系统", "v0.1.0"} {
+	for _, title := range []string{"系统设置", "Clash 设置", "Verge 基础设置", "Verge 高级设置", "简体中文", "浅色", "深色", "系统", "v0.2.0"} {
 		if !tt.HasText(title) {
 			t.Errorf("settings missing %q", title)
 		}
@@ -749,6 +749,7 @@ func TestSettingsRowChevronFormat(t *testing.T) {
 	m.Router.Replace("/settings")
 	tt := renderModel(m, WindowWidth, 1600, false)
 	rows := []string{
+		"service-row",
 		"ports", "external", "webui", "core-row", "geo", "tunnels",
 		"theme-row", "layout-row", "misc-row", "hotkey-row", "backup",
 		"runtime-row", "conf-dir", "core-dir", "log-dir", "check-update",

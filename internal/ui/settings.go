@@ -52,6 +52,15 @@ func (m *Model) systemSettings(c *mygoui.Context, pal Palette) {
 		m.switchLine(c, pal, "静默启动", &m.Prefs.SilentStart, "silent-row", func(bool) { m.savePrefs() }, func() {
 			helpMark(c, pal, "程序启动时以后台模式运行，不显示程序面板")
 		})
+		status := "未安装"
+		if m.ServiceInstalled {
+			status = "已安装"
+		}
+		clickRow(c, pal, "服务模式", "service-row", m.Busy == "service", func() {
+			m.Dialogs.Service = true
+		}, func() {
+			mygoui.Text(c, status).FontSize(14)
+		})
 	})
 }
 
