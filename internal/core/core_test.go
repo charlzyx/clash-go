@@ -11,8 +11,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charlzyx/clash-go/internal/ui"
+
 	"github.com/metacubex/mihomo/adapter/outboundgroup"
 	"github.com/metacubex/mihomo/tunnel"
+
+	mygoui "github.com/egoist/mygo/ui"
 )
 
 // These tests drive mihomo's process-wide singleton. Do not call t.Parallel.
@@ -211,8 +215,49 @@ rules:
 	if err := c.Select("PROXY", "missing"); err == nil {
 		t.Fatal("missing node was accepted")
 	}
+	if now := selectorNow(t, "PROXY"); now != "n2" {
+		t.Fatalf("failed select changed kernel now to %q", now)
+	}
 	if err := c.Select("DIRECT", "n1"); err == nil {
 		t.Fatal("DIRECT accepted a selector write")
+	}
+	// The page lists a node the kernel does not have. The click goes through
+	// core.Select; a rejection restores the row and leaves Now at n2.
+	clickMissingNode(t, c)
+}
+
+func clickMissingNode(t *testing.T, c *Core) {
+	t.Helper()
+	m := ui.NewModel(ui.HomeState{Running: true, Mode: "rule"})
+	m.Profiles = []ui.ProfileItem{{UID: "p1", Name: "sub", Type: "remote", URL: "https://example.com/sub"}}
+	m.CurrentProfile = "p1"
+	m.Prefs.ProxyColumns = 1
+	m.Groups = []ui.ProxyGroup{{
+		Name: "PROXY", Type: "select", Now: "n2", Open: true,
+		Nodes: []ui.ProxyNode{
+			{Name: "n2", Type: "direct", Delay: -1},
+			{Name: "ghost", Type: "direct", Delay: -1},
+		},
+	}}
+	m.Home.Node = ui.CurrentNode{Group: "PROXY", Name: "n2", Type: "direct", Delay: -1}
+	m.Hooks.SelectProxy = c.Select
+	m.Router.Replace("/proxies")
+	tt := mygoui.NewTester(m.View, ui.WindowWidth, ui.WindowHeight)
+	tt.SetScale(1)
+	for i := 0; i < 5 && tt.FramePending(); i++ {
+		tt.Advance(time.Second)
+	}
+	if err := tt.Click("node-PROXY-ghost"); err != nil {
+		t.Fatal(err)
+	}
+	if m.Groups[0].Now != "n2" || m.Home.Node.Name != "n2" {
+		t.Fatalf("UI kept the missing node: now %q home %q notice %q", m.Groups[0].Now, m.Home.Node.Name, m.Notice)
+	}
+	if m.Notice == "" || !tt.HasText(m.Notice) {
+		t.Fatalf("missing node notice %q texts %q", m.Notice, tt.Texts())
+	}
+	if now, err := c.Selected("PROXY"); err != nil || now != "n2" {
+		t.Fatalf("kernel Now %q err %v, want n2", now, err)
 	}
 }
 
