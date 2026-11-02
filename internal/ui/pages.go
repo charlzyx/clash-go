@@ -63,7 +63,7 @@ type HomeState struct {
 }
 
 // AppVersion is the Verge-compatible version shown with a leading v.
-const AppVersion = "0.2.0"
+const AppVersion = "0.2.1"
 
 func pageByPath(path string) (Page, bool) {
 	for _, p := range Pages() {

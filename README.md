@@ -24,14 +24,14 @@ go tool mygo build -platform darwin/arm64
 `go tool mygo build` 在 macOS 上写出：
 
 - `build/darwin-arm64/Clash Go.app`（`Info.plist`、`resources/icon.png` 生成的图标、ad-hoc 签名）
-- `build/darwin-arm64/clash-go-0.2.0-arm64.dmg`
-- `build/darwin-arm64/Clash-Go-0.2.0-arm64.zip`（Release 工作流把 `.app` 打成 zip）
+- `build/darwin-arm64/clash-go-0.2.1-arm64.dmg`
+- `build/darwin-arm64/Clash-Go-0.2.1-arm64.zip`（Release 工作流把同一份已签名的 `.app` 打成 zip 和 dmg）
 
 签名身份在 `mygo.json` 的 `macos.signingIdentity`，目前是 `-`（ad-hoc）。别的 Mac 上 Gatekeeper 会拦住这个包，正式分发要换成 Developer ID。
 
 ## 安装
 
-从 GitHub Release 下载 `Clash-Go-0.2.0-arm64.zip` 或 `clash-go-0.2.0-arm64.dmg`（darwin arm64）。zip 里是已经 ad-hoc 签名的 `Clash Go.app`。这个包没有 Developer ID，第一次打开会被系统拦住。解压或拖进「应用程序」之后，在终端执行：
+从 GitHub Release 下载 `Clash-Go-0.2.1-arm64.zip` 或 `clash-go-0.2.1-arm64.dmg`（darwin arm64）。两份都来自同一份已经 ad-hoc 签名、并带有 `clash-go-service` 的 `Clash Go.app`。这个包没有 Developer ID，第一次打开会被系统拦住。解压或拖进「应用程序」之后，在终端执行：
 
 ```sh
 xattr -cr "/Applications/Clash Go.app"
@@ -85,4 +85,4 @@ go tool cover -func=coverage.out | tail -n 1
 - **M2** 内核配置重载、订阅、代理页、真正的系统代理、托盘状态。
 - **M3** 连接、规则、日志、测试、设置页。
 - **M4** 测试页、TUN 配置（无服务助手时拒绝开启；CI 不打开 TUN）。
-- **M5** 服务模式（launchd 助手，安装后 TUN 可用）、v0.2.0 的 zip 与 dmg。自动更新仍在后面。
+- **M5** 服务模式（launchd 助手，安装后 TUN 可用）。v0.2.1 起 zip 和 dmg 来自同一份签过名、带 `clash-go-service` 的 `.app`。自动更新仍在后面。
