@@ -13,7 +13,7 @@
 | Commit | `160bb4fe8eaef2bc626163d89622229e5d7c5b59`（`Release: v2.5.9 (#8508)`） |
 | 前端入口 | `src/pages/`、`src/components/`、`src/locales/`、`src/assets/styles/` |
 | 窗口与托盘 | `src-tauri/src/utils/resolve/window.rs`、`src-tauri/src/core/tray/` |
-| 托盘文案 | `crates/clash-verge-i18n/locales/{zh,en}.yml`（本轮只列菜单结构，文案表待补） |
+| 托盘文案 | `crates/clash-verge-i18n/locales/{zh,en}.yml`（对照表 `i18n/tray.md`） |
 
 文中源码路径均相对 Clash Verge Rev 仓库，行号对应该 commit。MUI 的 `sx` 间距单位是 **8px**（`theme.spacing(1) = 8`）；`borderRadius: 1` 等于默认 `shape.borderRadius`（4px），`borderRadius: 2` 等于 8px。
 
@@ -34,11 +34,11 @@ docs/spec/
 │   └── settings.md           设置（含子对话框）                            [P0 完整]
 ├── outlines/
 │   ├── layout.md             整体布局（侧栏、顶栏、流量图、窗口尺寸）      [P1 大纲]
-│   ├── connections.md        连接                                          [P1 大纲]
-│   ├── rules.md              规则                                          [P1 大纲]
-│   ├── logs.md               日志                                          [P2 大纲]
-│   ├── unlock.md             测试                                          [P2 大纲]
-│   └── tray.md               托盘菜单                                      [P2 大纲]
+│   ├── connections.md        连接                                          [P1 规格]
+│   ├── rules.md              规则                                          [P1 规格]
+│   ├── logs.md               日志                                          [P2 规格]
+│   ├── unlock.md             测试（解锁测试）                              [P2 规格]
+│   └── tray.md               托盘菜单                                      [P2 规格]
 └── i18n/
     ├── home.md               首页文案 zh/en
     ├── proxies.md            代理文案 zh/en
@@ -46,7 +46,11 @@ docs/spec/
     ├── settings.md           设置文案 zh/en
     ├── shared.md             四页共用文案（shared）
     ├── layout.md             导航与布局文案（四页会引用）
-    └── tests.md              首页「网站测试」卡引用的 tests 文案
+    ├── tests.md              tests 文案（首页网站测试卡 + 解锁测试页）
+    ├── connections.md        连接页文案 zh/en
+    ├── rules.md              规则页文案 zh/en（不含订阅页规则编辑器）
+    ├── logs.md               日志页文案 zh/en
+    └── tray.md               托盘文案 zh/en（Rust i18n）
 ```
 
 ## 页面清单与优先级
@@ -62,13 +66,13 @@ docs/spec/
 | **P0** | 设计令牌 | — | — | 完整 `design-tokens.md` |
 | **P0** | 中英文案（上列四页 + shared / layout / 首页测试卡用到的 tests） | — | — | `i18n/` |
 | P1 | 整体布局 | 壳层 | — | 大纲 `outlines/layout.md`。窗口默认 940×700、最小 520×520，以及侧栏品牌位（mygo `favicon.svg`，展开 36×36 +「Clash Go」、收起 56×56 仅标记）已记下。细节（拖拽排序、更新按钮、系统服务弹窗）待补 |
-| P1 | 连接 | `/connections` | `layout.components.navigation.tabs.connections` | 大纲 |
-| P1 | 规则 | `/rules` | `layout.components.navigation.tabs.rules` | 大纲 |
-| P2 | 日志 | `/logs` | `layout.components.navigation.tabs.logs` | 大纲 |
-| P2 | 测试 | `/unlock` | `layout.components.navigation.tabs.unlock` | 大纲。首页里的网站测试卡已写入 `pages/home.md` |
-| P2 | 托盘菜单 | 系统托盘 | `crates/clash-verge-i18n` 的 `tray.*` | 大纲。v2.5.9 已移除托盘「测试延迟」 |
+| P1 | 连接 | `/connections` | `layout.components.navigation.tabs.connections` | 规格 `outlines/connections.md` + `i18n/connections.md` |
+| P1 | 规则 | `/rules` | `layout.components.navigation.tabs.rules` | 规格 `outlines/rules.md` + `i18n/rules.md` |
+| P2 | 日志 | `/logs` | `layout.components.navigation.tabs.logs` | 规格 `outlines/logs.md` + `i18n/logs.md` |
+| P2 | 测试 | `/unlock` | `layout.components.navigation.tabs.unlock` | 规格 `outlines/unlock.md`（页面标题「解锁测试」）+ `i18n/tests.md`。首页里的网站测试卡在 `pages/home.md` |
+| P2 | 托盘菜单 | 系统托盘 | `crates/clash-verge-i18n` 的 `tray.*` | 规格 `outlines/tray.md` + `i18n/tray.md`。v2.5.9 已移除托盘「测试延迟」 |
 
-M2 验收以 P0 四页 + 设计令牌 + 对应文案为准。P1/P2 只要求目录里有大纲，不作为本轮截图验收范围。
+M2 验收以 P0 四页 + 设计令牌 + 对应文案为准。P1/P2 规格已补到可逐项截图核对的粒度（各文件末尾「截图核对清单」与「待确认」），文件仍放在 `outlines/` 以免改路径；作为 M3 的验收依据。
 
 默认导航顺序（`src/pages/_navigation.tsx`）：首页 → 代理 → 订阅 → 连接 → 规则 → 日志 → 测试 → 设置。用户可在侧栏右键调整顺序，该项属于布局（P1）。
 
