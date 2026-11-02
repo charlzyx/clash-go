@@ -113,7 +113,7 @@ func (c *Core) Stop() error {
 	if !c.running {
 		return nil
 	}
-	closeProviders()
+	releaseOutboundProxies()
 	releaseListeners()
 	c.stopLogFeed()
 	c.running = false
@@ -188,6 +188,10 @@ func apply() error {
 		return fmt.Errorf("parse config: %w", err)
 	}
 	route.SetEmbedMode(true)
+	// Drop the previous apply's proxies before hub.Parse. Their finalizers
+	// call log.Debugln, and log.level has no lock, so that read races with
+	// log.SetLevel inside ApplyConfig.
+	releaseOutboundProxies()
 	if err := hub.Parse(suppressExternalController(data)); err != nil {
 		return fmt.Errorf("apply config: %w", err)
 	}
@@ -234,6 +238,34 @@ func releaseListeners() {
 	mihomodns.ReCreateServer("", nil, nil)
 	route.ReCreateServer(&route.Config{})
 	executor.Shutdown()
+}
+
+// releaseOutboundProxies closes proxies on this goroutine and clears the
+// auto-close finalizer. A later GC then has nothing left that logs.
+func releaseOutboundProxies() {
+	seen := map[C.Proxy]struct{}{}
+	closeProxy := func(p C.Proxy) {
+		if p == nil {
+			return
+		}
+		if _, ok := seen[p]; ok {
+			return
+		}
+		seen[p] = struct{}{}
+		_ = p.Close()
+	}
+	for _, p := range tunnel.Proxies() {
+		closeProxy(p)
+	}
+	for _, pv := range tunnel.Providers() {
+		if pv == nil {
+			continue
+		}
+		for _, p := range pv.Proxies() {
+			closeProxy(p)
+		}
+	}
+	closeProviders()
 }
 
 func closeProviders() {

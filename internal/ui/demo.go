@@ -82,6 +82,20 @@ func DemoModel() *Model {
 	}
 	m.CurrentProfile = "p1"
 	m.Prefs.SystemProxy = true
+	// Cached checks so the screenshot shows the status colors. Names match
+	// the catalog; load merges them onto the pending defaults.
+	m.Prefs.UnlockResults = []UnlockItem{
+		{Name: "Bahamut Anime", Status: "Yes", Region: "JP", CheckTime: "2026-11-02 12:00:01"},
+		{Name: "ChatGPT Web", Status: "No", CheckTime: "2026-11-02 12:00:02"},
+		{Name: "Claude", Status: "Risky", Region: "US", CheckTime: "2026-11-02 12:00:03"},
+		{Name: "Disney+", Status: "Soon", CheckTime: "2026-11-02 12:00:04"},
+		{Name: "Gemini", Status: "Failed", CheckTime: "2026-11-02 12:00:05"},
+		{Name: "Muse AI", Status: "Completed", Region: "US", CheckTime: "2026-11-02 12:00:06"},
+		{Name: "Netflix", Status: "Yes", Region: "US", CheckTime: "2026-11-02 12:00:07"},
+		{Name: "Prime Video", Status: "Disallowed ISP", CheckTime: "2026-11-02 12:00:08"},
+		{Name: "Spotify", Status: "Blocked", CheckTime: "2026-11-02 12:00:09"},
+		{Name: "YouTube Premium", Status: "Unsupported Country/Region", CheckTime: "2026-11-02 12:00:10"},
+	}
 	m.ConnDown = 6 * 1024 * 1024 * 1024
 	m.ConnUp = 800 * 1024 * 1024
 	m.Active = []Connection{

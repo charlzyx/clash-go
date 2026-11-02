@@ -26,7 +26,7 @@ func Pages() []Page {
 		{ID: "connections", Path: "/connections", Nav: "连接", Title: "连接"},
 		{ID: "rules", Path: "/rules", Nav: "规则", Title: "规则"},
 		{ID: "logs", Path: "/logs", Nav: "日志", Title: "日志"},
-		{ID: "test", Path: "/test", Nav: "测试", Title: "测试", Body: "连通性测试会显示在这里。"},
+		{ID: "unlock", Path: "/unlock", Nav: "测 试", Title: "解锁测试"},
 		{ID: "settings", Path: "/settings", Nav: "设置", Title: "设置"},
 	}
 }

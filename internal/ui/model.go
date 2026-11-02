@@ -37,6 +37,14 @@ type Hooks struct {
 	// ClearLogs drops the kernel log buffer, the same role as Verge's
 	// refreshGetClashLog(true). The page also clears its own rows.
 	ClearLogs func()
+	// RefreshUnlock reloads the unlock catalog. Nil keeps the page's
+	// own merge of DefaultUnlockItems and the cached results.
+	RefreshUnlock func()
+	// CheckUnlock runs one service, or every service when name is empty.
+	// onItem is called as each item finishes and may be nil. A non-nil
+	// error is the detection failure notice. Tests inject this; the page
+	// does not open a network connection itself.
+	CheckUnlock func(name string, onItem func(UnlockItem)) ([]UnlockItem, error)
 }
 
 // Model is the main window: a sidebar and the page it shows.
@@ -61,11 +69,15 @@ type Model struct {
 	RuleProviders []RuleProvider
 	RuleQuery     string
 	RulesList     mygoui.ListState
+	Unlock        []UnlockItem
 	PageVisible   bool
 	// rulesOnPage and rulesPageVisible remember the last frame so a
 	// refresh runs on enter and when the window is shown again.
 	rulesOnPage      bool
 	rulesPageVisible bool
+	unlockOnPage     bool
+	unlockAll        bool
+	unlockLoading    map[string]bool
 	Chain            ChainState
 	ProxiesLoading   bool
 	Profiles         []ProfileItem
@@ -190,6 +202,9 @@ func (m *Model) normalize() {
 	if m.ClashLog.LogOrder != "desc" {
 		m.ClashLog.LogOrder = "asc"
 	}
+	if m.unlockLoading == nil {
+		m.unlockLoading = map[string]bool{}
+	}
 }
 
 // View builds one frame of the main window.
@@ -200,6 +215,7 @@ func (m *Model) View(c *mygoui.Context) {
 	m.normalize()
 	m.flushFilters(c.Now())
 	m.syncRuleRefresh()
+	m.syncUnlock()
 	dark := c.Theme().Dark
 	switch m.Prefs.ThemeMode {
 	case "light":
@@ -237,6 +253,9 @@ func (m *Model) View(c *mygoui.Context) {
 				case "/logs":
 					r.Title("日志")
 					m.logsPage(c, pal)
+				case "/unlock":
+					r.Title("解锁测试")
+					m.unlockPage(c, pal)
 				default:
 					page, ok := pageByPath(path)
 					if !ok {
