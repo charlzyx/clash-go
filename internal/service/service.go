@@ -5,6 +5,7 @@ package service
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -152,6 +153,9 @@ func handleConn(conn net.Conn, token string, host Host) {
 		return
 	}
 	if strings.TrimSpace(line) != token || token == "" {
+		// The client writes the request in the same burst. Read it before
+		// closing so the write is not a broken pipe.
+		_, _ = r.ReadString('\n')
 		writeResp(conn, Response{OK: false, Error: ErrAuth.Error()})
 		return
 	}
@@ -203,15 +207,15 @@ func Call(socket, token string, req Request) (Response, error) {
 		return Response{}, err
 	}
 	defer conn.Close()
-	if _, err := fmt.Fprintf(conn, "%s\n", token); err != nil {
-		return Response{}, err
-	}
 	b, err := json.Marshal(req)
 	if err != nil {
 		return Response{}, err
 	}
-	b = append(b, '\n')
-	if _, err := conn.Write(b); err != nil {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%s\n", token)
+	buf.Write(b)
+	buf.WriteByte('\n')
+	if _, err := conn.Write(buf.Bytes()); err != nil {
 		return Response{}, err
 	}
 	line, err := bufio.NewReader(conn).ReadBytes('\n')
