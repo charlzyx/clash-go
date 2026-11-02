@@ -79,7 +79,7 @@ func (m *Model) clashSettings(c *mygoui.Context, pal Palette) {
 		disabled := m.currentProfile() == nil || m.DNSAsk
 		mygoui.Row(c).FillWidth().Padding(5, 0).AlignItems(mygoui.Center).Gap(8).Children(func() {
 			mygoui.Text(c, "DNS 覆写").FontSize(14).Grow(1)
-			mygoui.Text(c, "?").FontSize(12).Tooltip("DNS 覆写开关按订阅独立保存，仅对对应订阅生效。").TextColor(pal.TextMuted)
+			mygoui.Text(c, "i").FontSize(12).Tooltip("DNS 覆写开关按订阅独立保存，仅对对应订阅生效。").TextColor(pal.TextMuted)
 			if textButton(c, pal, "齿轮", "DNS 覆写", "dns-gear") {
 				m.Dialogs.DNS = true
 			}
@@ -139,27 +139,9 @@ func (m *Model) vergeBasic(c *mygoui.Context, pal Palette) {
 			}
 		})
 		mygoui.Text(c, "主题模式").FontSize(14)
-		modes := []struct{ id, label string }{{"light", "浅色"}, {"dark", "深色"}, {"system", "系统"}}
-		mygoui.Row(c).Padding(4, 0).Children(func() {
-			for i, item := range modes {
-				item := item
-				on := m.Prefs.ThemeMode == item.id
-				b := mygoui.ButtonBase(c.Key("theme-"+item.id)).Height(28).Padding(0, 12).Label("theme-" + item.id)
-				switch {
-				case i == 0:
-					b.Radius(6, 0, 0, 6)
-				case i == len(modes)-1:
-					b.Radius(0, 6, 6, 0)
-				default:
-					b.Radius(0)
-				}
-				if on {
-					b.Background(pal.Primary).TextColor(pal.OnPrimary)
-				} else {
-					b.Background(pal.Card).TextColor(pal.Text).Border(1, pal.Primary)
-				}
-				b.Children(func() { mygoui.Text(c, item.label).FontSize(13) })
-				if b.Clicked() {
+		mygoui.Row(c).Gap(6).Padding(4, 0).Children(func() {
+			for _, item := range []struct{ id, label string }{{"light", "浅色"}, {"dark", "深色"}, {"system", "系统"}} {
+				if filledButton(c, pal, item.label, "theme-"+item.id, m.Prefs.ThemeMode == item.id) {
 					m.Prefs.ThemeMode = item.id
 					m.savePrefs()
 				}

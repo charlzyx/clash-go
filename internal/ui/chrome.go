@@ -66,7 +66,7 @@ func card(c *mygoui.Context, pal Palette, title, mark string, tone Tone, action 
 				action()
 			}
 		})
-		mygoui.Column(c).Padding(16).Gap(8).AlignItems(mygoui.Start).Children(func() {
+		mygoui.Column(c).Padding(16).Gap(8).Children(func() {
 			if body != nil {
 				body()
 			}
