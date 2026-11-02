@@ -67,7 +67,7 @@ func (m *Model) profileCard(c *mygoui.Context, pal Palette) mygoui.Element {
 		if m.Home.Profile == nil {
 			return
 		}
-		if filledButton(c, pal, "订 阅", "home-open-profiles", false) {
+		if filledButton(c, pal, "订阅", "home-open-profiles", false) {
 			m.goPath("/profile")
 		}
 	}, func() {
@@ -121,10 +121,10 @@ func (m *Model) currentCard(c *mygoui.Context, pal Palette) mygoui.Element {
 		if b.Clicked() {
 			m.Home.Node.Delay = DelayTesting
 		}
-		if textButton(c, pal, SortLabel(m.nodeSort()), SortLabel(m.nodeSort()), "node-sort") {
+		if textButton(c, pal, sortMark(m.nodeSort()), SortLabel(m.nodeSort()), "node-sort") {
 			m.cycleNodeSort()
 		}
-		if filledButton(c, pal, "代 理", "home-open-proxies", false) {
+		if filledButton(c, pal, "代理", "home-open-proxies", false) {
 			m.goPath("/proxies")
 		}
 	}, func() {
@@ -249,7 +249,7 @@ func (m *Model) cycleNodeSort() {
 
 func (m *Model) networkCard(c *mygoui.Context, pal Palette) mygoui.Element {
 	return card(c, pal, "网络设置", "网", TonePrimary, nil, func() {
-		mygoui.Row(c).Gap(8).Children(func() {
+		mygoui.Row(c).FillWidth().Gap(8).Children(func() {
 			if modeFace(c, pal, "系统代理", "tab-system", tabID(m.NetTab), false, m.Home.SystemProxy) {
 				m.NetTab = 0
 			}
@@ -258,7 +258,7 @@ func (m *Model) networkCard(c *mygoui.Context, pal Palette) mygoui.Element {
 			}
 		})
 		desc, tip := m.networkDesc()
-		mygoui.Row(c).Padding(8).Radius(4).Border(1, pal.Primary).AlignItems(mygoui.Center).Children(func() {
+		mygoui.Row(c).FillWidth().Padding(8).Radius(4).Border(1, pal.Primary).AlignItems(mygoui.Center).Children(func() {
 			mygoui.Text(c, desc).FontSize(12).TextColor(pal.TextMuted).Grow(1)
 			mygoui.Text(c, "?").FontSize(14).Tooltip(tip).TextColor(pal.TextMuted)
 		})
@@ -320,7 +320,7 @@ func (m *Model) networkDesc() (string, string) {
 
 func (m *Model) modeCard(c *mygoui.Context, pal Palette) mygoui.Element {
 	return card(c, pal, "代理模式", "模", ToneInfo, nil, func() {
-		mygoui.Row(c).Gap(8).Children(func() {
+		mygoui.Row(c).FillWidth().Gap(8).Children(func() {
 			if modeFace(c, pal, "规则", "mode-rule", "mode-"+m.Home.Mode, true, false) {
 				m.setMode("rule")
 			}
@@ -331,7 +331,7 @@ func (m *Model) modeCard(c *mygoui.Context, pal Palette) mygoui.Element {
 				m.setMode("direct")
 			}
 		})
-		mygoui.Text(c, modeDesc(m.Home.Mode)).FontSize(12).TextColor(pal.TextMuted).Padding(8).
+		mygoui.Text(c, modeDesc(m.Home.Mode)).FontSize(12).TextColor(pal.TextMuted).Padding(8).FillWidth().
 			Border(1, pal.Primary).Radius(4)
 	})
 }

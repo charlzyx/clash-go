@@ -66,7 +66,7 @@ func card(c *mygoui.Context, pal Palette, title, mark string, tone Tone, action 
 				action()
 			}
 		})
-		mygoui.Column(c).Padding(16).Gap(8).Children(func() {
+		mygoui.Column(c).Padding(16).Gap(8).AlignItems(mygoui.Start).Children(func() {
 			if body != nil {
 				body()
 			}
@@ -187,6 +187,9 @@ func clickRow(c *mygoui.Context, pal Palette, label, id string, busy bool, click
 		b := mygoui.ButtonBase(c.Key(id)).Grow(1).Padding(5, 0).Disabled(busy).Label(id)
 		b.Children(func() {
 			mygoui.Text(c, label).FontSize(14).Grow(1)
+			if trail != nil {
+				trail()
+			}
 			if busy {
 				mygoui.Text(c, "…").FontSize(14).TextColor(pal.Primary)
 			} else {
@@ -195,9 +198,6 @@ func clickRow(c *mygoui.Context, pal Palette, label, id string, busy bool, click
 		})
 		if b.Clicked() {
 			click()
-		}
-		if trail != nil {
-			trail()
 		}
 	})
 }

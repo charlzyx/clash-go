@@ -99,6 +99,14 @@ func TestSidebarBrandMark(t *testing.T) {
 	if collapsed.Y < 0 || collapsed.Y+collapsed.H > logoCollapsedBox+1 {
 		t.Fatalf("collapsed icon outside the 56px logo area: %v", collapsed)
 	}
+	side, ok := ct.Find("sidebar")
+	if !ok || side.W < 70 || side.W > 74 {
+		t.Fatalf("collapsed sidebar %v, want width 72", side)
+	}
+	slot, ok := ct.Find("logo-slot")
+	if !ok || slot.W < 54 || slot.W > 58 || slot.H < 54 || slot.H > 58 {
+		t.Fatalf("logo slot %v, want 56×56", slot)
+	}
 	assertCyanMark(t, ct.Image(), collapsed)
 }
 
@@ -479,6 +487,11 @@ func TestSettingsSections(t *testing.T) {
 	if !tt.HasText("托盘点击事件") {
 		t.Fatal("tray click row")
 	}
+	port, pok := tt.Find("7897")
+	chev, cok := tt.Find("›")
+	if !pok || !cok || port.X+port.W > chev.X {
+		t.Fatalf("chevron should sit to the right of the port value, port %v chevron %v", port, chev)
+	}
 	plain := NewModel(demoHome())
 	plain.Router.Replace("/settings")
 	pt := mygoui.NewTester(plain.View, WindowWidth, WindowHeight)
@@ -598,6 +611,42 @@ func TestPageScreenshots(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+		collapsed := DemoModel()
+		collapsed.Prefs.CollapseNav = true
+		if theme.dark {
+			collapsed.Prefs.ThemeMode = "dark"
+		} else {
+			collapsed.Prefs.ThemeMode = "light"
+		}
+		ct := renderModel(collapsed, WindowWidth, WindowHeight, theme.dark)
+		side, ok := ct.Find("sidebar")
+		slot, slotOK := ct.Find("logo-slot")
+		if !ok || !slotOK || side.W < 70 || side.W > 74 || slot.W < 54 || slot.H < 54 {
+			t.Fatalf("collapsed frame sidebar %v logo %v", side, slot)
+		}
+		if ct.HasText("Clash Go") {
+			t.Fatal("collapsed screenshot still shows the wordmark")
+		}
+		if dir == "" {
+			continue
+		}
+		path := filepath.Join(dir, "sidebar-collapsed-"+theme.name+".png")
+		if err := writePNG(path, ct.Image()); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestProfileDividerStaysWithCards(t *testing.T) {
+	m := DemoModel()
+	m.Router.Replace("/profile")
+	tt := renderModel(m, WindowWidth, WindowHeight, false)
+	d, ok := tt.Find("profile-rule")
+	if !ok {
+		t.Fatal("missing profile divider")
+	}
+	if d.X < sidebarExpandedWidth+4 || d.X+d.W > float32(WindowWidth)-8 {
+		t.Fatalf("divider %v extends outside the card column", d)
 	}
 }
 

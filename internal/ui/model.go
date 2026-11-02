@@ -190,25 +190,12 @@ func (m *Model) sidebarWidth() float32 {
 func (m *Model) sidebar(c *mygoui.Context, pal Palette) {
 	page := m.Router.Path()
 	collapsed := m.Prefs.CollapseNav
-	mygoui.Column(c).Width(m.sidebarWidth()).FillHeight().Background(pal.Paper).
+	mygoui.Column(c).Width(m.sidebarWidth()).FillHeight().Background(pal.Paper).Label("sidebar").
 		BorderWidth(0, 1, 0, 0).BorderColor(pal.Divider).Children(func() {
 		m.logoRow(c, pal, collapsed)
-		mygoui.Column(c).Grow(1).Padding(8, 12).Gap(4).Children(func() {
+		mygoui.Column(c).Grow(1).Padding(8, 10).Gap(4).Children(func() {
 			for _, item := range Pages() {
-				on := page == item.Path
-				b := mygoui.ButtonBase(c.Key("nav-"+item.Path)).FillWidth().Height(36).Padding(0, 12).Radius(8).Label("nav-" + item.Nav)
-				if on {
-					b.Background(pal.SelectedFill())
-					b.TextColor(pal.SidebarOn)
-				} else {
-					b.Background(mygoui.Transparent).TextColor(pal.Text)
-				}
-				b.AlignItems(mygoui.Center)
-				nav := item
-				b.Children(func() { mygoui.Text(c, nav.Nav).FontSize(14) })
-				if b.Clicked() {
-					m.Router.Push(nav.Path)
-				}
+				m.navItem(c, pal, item, page == item.Path, collapsed)
 			}
 		})
 		if collapsed {
@@ -226,11 +213,50 @@ func (m *Model) sidebar(c *mygoui.Context, pal Palette) {
 	})
 }
 
+func (m *Model) navItem(c *mygoui.Context, pal Palette, item Page, on, collapsed bool) {
+	fg := pal.Text
+	if on {
+		fg = pal.SidebarOn
+	}
+	if collapsed {
+		mygoui.Row(c).FillWidth().Justify(mygoui.Center).Children(func() {
+			b := mygoui.ButtonBase(c.Key("nav-"+item.Path)).Size(52, 52).Radius(12).Label("nav-" + item.Nav)
+			if on {
+				b.Background(pal.SelectedFill())
+			} else {
+				b.Background(mygoui.Transparent)
+			}
+			b.TextColor(fg).AlignItems(mygoui.Center).Justify(mygoui.Center)
+			b.Children(func() {
+				mygoui.Icon(c, navIcon(item.ID)).Size(22, 22)
+			})
+			if b.Clicked() {
+				m.Router.Push(item.Path)
+			}
+		})
+		return
+	}
+	b := mygoui.ButtonBase(c.Key("nav-"+item.Path)).FillWidth().Height(40).Padding(0, 12).Gap(10).Radius(8).Label("nav-" + item.Nav)
+	if on {
+		b.Background(pal.SelectedFill())
+	} else {
+		b.Background(mygoui.Transparent)
+	}
+	b.TextColor(fg).AlignItems(mygoui.Center)
+	b.Children(func() {
+		mygoui.Icon(c, navIcon(item.ID)).Size(20, 20).Shrink(0)
+		mygoui.Text(c, item.Nav).FontSize(14)
+	})
+	if b.Clicked() {
+		m.Router.Push(item.Path)
+	}
+}
+
 func (m *Model) logoRow(c *mygoui.Context, pal Palette, collapsed bool) {
 	if collapsed {
 		// Collapsed mark uses margin 0 and sits centered in the 56×56 logo area.
 		mygoui.Row(c).Height(logoCollapsedBox).AlignItems(mygoui.Center).Justify(mygoui.Center).Children(func() {
-			mygoui.Column(c).Size(logoCollapsedBox, logoCollapsedBox).AlignItems(mygoui.Center).Justify(mygoui.Center).Children(func() {
+			mygoui.Column(c).Size(logoCollapsedBox, logoCollapsedBox).Label("logo-slot").AlignItems(mygoui.Center).Justify(mygoui.Center).Children(func() {
 				mygoui.Image(c, brandMark).Size(brandMarkSize, brandMarkSize).Label("mygo")
 			})
 		})

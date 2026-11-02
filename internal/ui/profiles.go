@@ -36,7 +36,7 @@ func (m *Model) profilePage(c *mygoui.Context, pal Palette) {
 					m.profileItem(c, pal, i)
 				}
 			})
-			mygoui.Box(c).FillWidth().Height(1).Margin(8, 16).Background(pal.Divider)
+			mygoui.Box(c).FillWidth().Height(1).Label("profile-rule").Background(pal.Divider)
 			mygoui.Grid(c).Columns(2).Gap(8).Children(func() {
 				m.extensionCard(c, pal, "全局扩展覆写配置", "Merge")
 				m.extensionCard(c, pal, "全局扩展脚本", "Script")
@@ -61,8 +61,13 @@ func (m *Model) importRow(c *mygoui.Context, pal Palette) {
 		} else if textButton(c, pal, "清除", "清除", "clear-url") {
 			m.ProfileURL = ""
 		}
-		b := mygoui.ButtonBase(c.Key("do-import")).Height(28).Padding(0, 10).Radius(6).Label("do-import")
-		b.Background(pal.Primary).TextColor(pal.OnPrimary).Disabled(strings.TrimSpace(m.ProfileURL) == "" || m.ProfileBusy)
+		empty := strings.TrimSpace(m.ProfileURL) == "" || m.ProfileBusy
+		b := mygoui.ButtonBase(c.Key("do-import")).Height(28).Padding(0, 10).Radius(6).Label("do-import").Disabled(empty)
+		if empty {
+			b.Background(pal.TextMuted.Alpha(0.25)).TextColor(pal.TextMuted)
+		} else {
+			b.Background(pal.Primary).TextColor(pal.OnPrimary)
+		}
 		b.Children(func() { mygoui.Text(c, "导入").FontSize(13) })
 		if b.Clicked() {
 			m.importProfile(c)
