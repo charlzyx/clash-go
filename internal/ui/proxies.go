@@ -111,7 +111,7 @@ func (m *Model) proxyEmpty(c *mygoui.Context, pal Palette, reason EmptyReason) {
 					if filledButton(c, pal, "重启内核", "empty-restart-"+string(reason), true) {
 						if m.Hooks.RestartCore != nil {
 							if err := m.Hooks.RestartCore(); err != nil {
-								m.Notice = err.Error()
+								m.SetNotice(err.Error())
 							}
 						}
 					}
@@ -402,7 +402,7 @@ func (m *Model) nodeRow(c *mygoui.Context, pal Palette, g *ProxyGroup, n ProxyNo
 func (m *Model) addChain(n ProxyNode) {
 	for _, cur := range m.Chain.Nodes {
 		if cur.Name == n.Name {
-			m.Notice = "该节点已在链式代理表中"
+			m.SetNotice("该节点已在链式代理表中")
 			return
 		}
 	}

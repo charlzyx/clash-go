@@ -62,9 +62,6 @@ func (m *Model) rulesPage(c *mygoui.Context, pal Palette) {
 				m.Dialogs.RuleProvider = true
 			}
 		})
-		if m.Notice != "" {
-			mygoui.Text(c, m.Notice).FontSize(13).TextColor(pal.Error).Padding(6, 20)
-		}
 		mygoui.Row(c).Height(RuleSearchRowHeight).Padding(0, RuleSearchPadX).AlignItems(mygoui.Center).Shrink(0).
 			Label("rules-search-row").Children(func() {
 			mygoui.TextInput(c, &m.RuleQuery).FillWidth().Placeholder("过滤条件").Label("rules-search")
@@ -190,17 +187,17 @@ func sortedRuleProviders(in []RuleProvider) []RuleProvider {
 func (m *Model) updateOneRuleProvider(name string) {
 	if m.Hooks.UpdateRuleProvider != nil {
 		if err := m.Hooks.UpdateRuleProvider(name); err != nil {
-			m.Notice = name + " 更新失败: " + err.Error()
+			m.SetNotice(name + " 更新失败: " + err.Error())
 			return
 		}
 	}
-	m.Notice = name + " 更新成功"
+	m.SetNotice(name + " 更新成功")
 	m.refreshRules()
 }
 
 func (m *Model) updateAllRuleProviders() {
 	if len(m.RuleProviders) == 0 {
-		m.Notice = "没有可更新的规则集合"
+		m.SetNotice("没有可更新的规则集合")
 		return
 	}
 	// Verge logs a single provider's error and still reports that every
@@ -215,6 +212,6 @@ func (m *Model) updateAllRuleProviders() {
 		}
 		_ = m.Hooks.UpdateRuleProvider(name)
 	}
-	m.Notice = "所有规则集合均已更新"
+	m.SetNotice("所有规则集合均已更新")
 	m.refreshRules()
 }

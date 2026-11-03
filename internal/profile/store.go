@@ -40,6 +40,9 @@ type CatalogOption struct {
 	Script          string `json:"script,omitempty"`
 	UserAgent       string `json:"user_agent,omitempty"`
 	TimeoutSeconds  int    `json:"timeout,omitempty"`
+	// DNSOverwrite is the settings-page DNS switch for this subscription.
+	// It is not a global preference: each profile keeps its own value.
+	DNSOverwrite bool `json:"dns_overwrite,omitempty"`
 }
 
 // File is profiles.json.

@@ -183,6 +183,9 @@ type ProfileOption struct {
 	Script          string
 	UserAgent       string
 	TimeoutSeconds  int
+	// DNSOverwrite is this subscription's DNS switch. The settings page
+	// reads it from the current profile, not from the global prefs blob.
+	DNSOverwrite bool
 }
 
 // ProfileForm is the create/edit dialog draft.

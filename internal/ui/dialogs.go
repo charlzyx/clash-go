@@ -117,7 +117,7 @@ func (m *Model) deleteDialog(c *mygoui.Context, pal Palette) {
 						m.CurrentProfile = ""
 						m.Home.Profile = nil
 					}
-					m.Notice = "订阅已删除"
+					m.SetNotice("订阅已删除")
 				}
 			})
 		})
@@ -214,6 +214,7 @@ func (m *Model) saveForm() {
 		for i := range m.Profiles {
 			if m.Profiles[i].UID == item.UID {
 				item.Updated = m.Profiles[i].Updated
+				item.Option.DNSOverwrite = m.Profiles[i].Option.DNSOverwrite
 				m.Profiles[i] = item
 			}
 		}
@@ -221,7 +222,7 @@ func (m *Model) saveForm() {
 		m.addProfile(item)
 	}
 	m.Form.Open = false
-	m.Notice = "保存成功"
+	m.SetNotice("保存成功")
 }
 
 func (m *Model) field(c *mygoui.Context, label string, value *string) {
@@ -257,15 +258,15 @@ func (m *Model) providerDialog(c *mygoui.Context, pal Palette) {
 					}
 					mygoui.Text(c, exp).FontSize(12).TextColor(pal.TextMuted)
 					if textButton(c, pal, "更新", "更新", "prov-"+p.Name) {
-						m.Notice = p.Name + " 更新成功"
+						m.SetNotice(p.Name + " 更新成功")
 					}
 				})
 			}
 			if filledButton(c, pal, "更新全部", "prov-all", true) {
 				if len(m.Providers) == 0 {
-					m.Notice = "没有可更新的 provider"
+					m.SetNotice("没有可更新的 provider")
 				} else {
-					m.Notice = "所有 provider 均已更新"
+					m.SetNotice("所有 provider 均已更新")
 				}
 			}
 		})
@@ -434,7 +435,7 @@ func (m *Model) webdavBody(c *mygoui.Context, pal Palette) {
 	m.field(c, "密码", &m.Prefs.WebDAVPassword)
 	if filledButton(c, pal, "保存", "webdav-save", true) {
 		m.savePrefs()
-		m.Notice = "保存成功"
+		m.SetNotice("保存成功")
 	}
 }
 
@@ -459,12 +460,12 @@ func (m *Model) portsBody(c *mygoui.Context, pal Palette) {
 	}
 	if filledButton(c, pal, "保存", "ports-save", true) {
 		if err != "" {
-			m.Notice = err
+			m.SetNotice(err)
 			return
 		}
 		m.Home.MixedPort = m.Prefs.MixedPort
 		m.savePrefs()
-		m.Notice = "端口设置已保存"
+		m.SetNotice("端口设置已保存")
 		m.Dialogs.Ports = false
 	}
 	_ = pal
@@ -531,7 +532,7 @@ func (m *Model) runtimeBody(c *mygoui.Context, pal Palette) {
 func (m *Model) liteBody(c *mygoui.Context, pal Palette) {
 	if filledButton(c, pal, "立即进入", "lite-now", true) {
 		m.Prefs.Lightweight = true
-		m.Notice = "轻量模式"
+		m.SetNotice("轻量模式")
 	}
 	m.boolLine(c, "自动进入轻量模式", &m.Prefs.Lightweight)
 	mygoui.Text(c, "关闭窗口后，轻量模式将在一段时间后自动激活").FontSize(12).TextColor(pal.TextMuted)
@@ -549,10 +550,16 @@ func (m *Model) dnsConfirm(c *mygoui.Context, pal Palette) {
 			mygoui.Row(c).Gap(8).Children(func() {
 				if filledButton(c, pal, "保持关闭", "dns-keep", false) {
 					m.Prefs.DNSOverwrite = false
+					if cur := m.currentProfile(); cur != nil {
+						cur.Option.DNSOverwrite = false
+					}
 					m.DNSAsk = false
 				}
 				if filledButton(c, pal, "仍然开启", "dns-anyway", true) {
 					m.Prefs.DNSOverwrite = true
+					if cur := m.currentProfile(); cur != nil {
+						cur.Option.DNSOverwrite = true
+					}
 					m.DNSAsk = false
 					m.savePrefs()
 				}

@@ -72,9 +72,6 @@ func (m *Model) connectionsPage(c *mygoui.Context, pal Palette) {
 	mygoui.Column(c).Fill().MaxWidth(w - m.sidebarWidth()).Children(func() {
 		m.connHeader(c, pal, now)
 		m.connToolbar(c, pal, rows)
-		if m.Notice != "" {
-			mygoui.Text(c, m.Notice).FontSize(13).TextColor(pal.Error).Padding(4, 20)
-		}
 		if connRegexInvalid(m.ConnQuery, m.ConnSearch) {
 			mygoui.Text(c, "无效的正则表达式").FontSize(12).TextColor(pal.Error).Padding(0, 20, 4, 20)
 		}

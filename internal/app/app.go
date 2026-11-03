@@ -2,12 +2,14 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -42,12 +44,14 @@ type App struct {
 	tun   tun.Controller
 	core  *core.Core
 
-	settings appconfig.Settings
-	model    *ui.Model
-	dir      string
-	profiles *profile.Store
-	started  time.Time
-	logSeq   uint64
+	settings  appconfig.Settings
+	model     *ui.Model
+	dir       string
+	profiles  *profile.Store
+	started   time.Time
+	logSeq    uint64
+	applied   clashStamp
+	appliedOK bool
 
 	win  *mygo.Window
 	tray *mygo.Tray
@@ -98,7 +102,7 @@ func (a *App) Prepare() error {
 	a.applySettings()
 	a.loadProfiles()
 	if err := a.installCurrentProfile(); err != nil {
-		a.model.Notice = err.Error()
+		a.model.SetNotice(err.Error())
 	}
 	if err := a.core.Start(dir); err != nil {
 		a.model.Home.Version = core.Version()
@@ -108,6 +112,15 @@ func (a *App) Prepare() error {
 		a.model.Home.SystemProxy = settings.SystemProxy
 		a.model.Home.TUN = settings.TUN
 		a.bindHooks()
+		if settings.SystemProxy {
+			a.settings.SystemProxy = false
+			a.model.Home.SystemProxy = false
+			a.model.Prefs.SystemProxy = false
+			if a.store != nil {
+				_ = a.store.Save(a.settings)
+			}
+			a.model.SetNotice("内核尚未就绪，系统代理保持关闭")
+		}
 		return nil
 	}
 	a.started = time.Now()
@@ -115,6 +128,8 @@ func (a *App) Prepare() error {
 	a.loadRules()
 	a.bindHooks()
 	a.refreshHome()
+	a.markApplied()
+	a.reconcileSystemProxy()
 	return nil
 }
 
@@ -145,7 +160,7 @@ func (a *App) loadProfiles() {
 	}
 	file, err := a.profiles.Load()
 	if err != nil {
-		a.model.Notice = err.Error()
+		a.model.SetNotice(err.Error())
 		return
 	}
 	a.model.Profiles = nil
@@ -160,12 +175,15 @@ func (a *App) loadProfiles() {
 				AllowAutoUpdate: it.Option.AllowAutoUpdate, Rules: it.Option.Rules, Proxies: it.Option.Proxies,
 				Groups: it.Option.Groups, Merge: it.Option.Merge, Script: it.Option.Script,
 				UserAgent: it.Option.UserAgent, TimeoutSeconds: it.Option.TimeoutSeconds,
+				DNSOverwrite: it.Option.DNSOverwrite,
 			},
 		})
 	}
 	if cur := a.model.CurrentItem(); cur != nil {
 		a.model.Home.Profile = &ui.HomeProfile{Name: cur.Name, URL: cur.URL, Home: cur.Home, Updated: cur.Updated, Used: cur.Used, Total: cur.Total, Expire: cur.Expire}
+		a.model.Prefs.DNSOverwrite = cur.Option.DNSOverwrite
 	}
+	a.model.ProfileHasDNS = profile.HasTopLevelDNS(a.currentProfileBody())
 }
 
 // SetSystemProxy asks the proxy controller to enable or disable the
@@ -247,32 +265,37 @@ func (a *App) refreshHome() {
 }
 
 func (a *App) installCurrentProfile() error {
-	if a.profiles == nil || a.model == nil {
-		return nil
-	}
-	cur := a.model.CurrentItem()
-	if cur == nil {
+	return a.writeRuntime(false)
+}
+
+// ActivateProfile makes uid the current subscription and reloads the kernel
+// with that profile's DNS overwrite plus the clash fields from prefs.
+func (a *App) ActivateProfile(uid string) error {
+	if a.profiles == nil || a.dir == "" {
 		return nil
 	}
 	file, err := a.profiles.Load()
 	if err != nil {
 		return err
 	}
-	var rel string
-	for _, it := range file.Items {
-		if it.UID == cur.UID {
-			rel = it.File
-		}
-	}
-	if rel == "" {
-		return nil
-	}
-	body, err := os.ReadFile(filepath.Join(a.dir, rel))
-	if err != nil {
+	file.Current = uid
+	if err := a.profiles.Save(file); err != nil {
 		return err
 	}
-	body = profile.EnsureMixedPort(body, 7897)
-	return os.WriteFile(filepath.Join(a.dir, "config.yaml"), body, 0o644)
+	a.loadProfiles()
+	if err := a.writeRuntime(false); err != nil {
+		return err
+	}
+	if a.core != nil && a.core.Status().Running {
+		if err := a.core.Reload(); err != nil {
+			return err
+		}
+		a.loadGroups()
+		a.loadRules()
+		a.refreshHome()
+	}
+	a.markApplied()
+	return nil
 }
 
 func (a *App) loadGroups() {
@@ -285,7 +308,7 @@ func (a *App) loadGroups() {
 	}
 	parsed, err := profile.ParseClashYAML(body)
 	if err != nil {
-		a.model.Notice = err.Error()
+		a.model.SetNotice(err.Error())
 		return
 	}
 	if parsed.Rules > 0 {
@@ -323,6 +346,7 @@ func (a *App) bindHooks() {
 		SetMode:             a.SetMode,
 		ImportURL:           a.ImportURL,
 		SavePrefs:           a.savePrefs,
+		ActivateProfile:     a.ActivateProfile,
 		OpenDir:             a.openDir,
 		RestartCore:         a.restartCore,
 		Copy:                writeClipboard,
@@ -498,10 +522,41 @@ func (a *App) ImportURL(raw string) error {
 	}
 	a.loadGroups()
 	a.loadRules()
+	a.markApplied()
 	return nil
 }
 
 func (a *App) savePrefs(p ui.Prefs) error {
+	if a.model != nil {
+		a.model.Prefs = p
+	}
+	if err := a.persistSettings(p); err != nil {
+		return err
+	}
+	if err := a.persistProfileDNS(p.DNSOverwrite); err != nil {
+		return err
+	}
+	next := a.clashStamp(p)
+	if a.appliedOK && next == a.applied {
+		return nil
+	}
+	if err := a.writeRuntime(true); err != nil {
+		return err
+	}
+	if a.core != nil && a.core.Status().Running {
+		if err := a.core.Reload(); err != nil {
+			return err
+		}
+		a.loadGroups()
+		a.loadRules()
+		a.refreshHome()
+	}
+	a.applied = next
+	a.appliedOK = true
+	return nil
+}
+
+func (a *App) persistSettings(p ui.Prefs) error {
 	a.settings.SystemProxy = p.SystemProxy
 	a.settings.TUN = p.TUN
 	a.settings.TrayEvent = p.TrayEvent
@@ -517,6 +572,188 @@ func (a *App) savePrefs(p ui.Prefs) error {
 		return nil
 	}
 	return a.store.Save(a.settings)
+}
+
+// clashStamp is the subset of prefs that changes config.yaml. Theme, language
+// and the other Verge fields are not in it, so saving those does not reload.
+type clashStamp struct {
+	AllowLan     bool
+	IPv6         bool
+	UnifiedDelay bool
+	DNS          bool
+	LogLevel     string
+	Mixed        int
+	Socks        int
+	SocksOn      bool
+	HTTP         int
+	HTTPOn       bool
+	Redir        int
+	RedirOn      bool
+	TProxy       int
+	TProxyOn     bool
+	Profile      string
+}
+
+func (a *App) clashStamp(p ui.Prefs) clashStamp {
+	dns := p.DNSOverwrite
+	uid := ""
+	if a.model != nil {
+		uid = a.model.CurrentProfile
+		if cur := a.model.CurrentItem(); cur != nil {
+			dns = cur.Option.DNSOverwrite
+		}
+	}
+	return clashStamp{
+		AllowLan: p.AllowLan, IPv6: p.IPv6, UnifiedDelay: p.UnifiedDelay, DNS: dns,
+		LogLevel: profile.KernelLogLevel(p.LogLevel),
+		Mixed:    p.MixedPort, Socks: p.SocksPort, SocksOn: p.SocksOn,
+		HTTP: p.HTTPPort, HTTPOn: p.HTTPOn,
+		Redir: p.RedirPort, RedirOn: p.RedirOn,
+		TProxy: p.TProxyPort, TProxyOn: p.TProxyOn,
+		Profile: uid,
+	}
+}
+
+func (a *App) markApplied() {
+	if a.model == nil {
+		return
+	}
+	a.applied = a.clashStamp(a.model.Prefs)
+	a.appliedOK = true
+}
+
+func (a *App) clashPatch(p ui.Prefs) profile.ClashPatch {
+	dns := p.DNSOverwrite
+	if a.model != nil {
+		if cur := a.model.CurrentItem(); cur != nil {
+			dns = cur.Option.DNSOverwrite
+		}
+	}
+	return profile.ClashPatch{
+		AllowLan: p.AllowLan, IPv6: p.IPv6, UnifiedDelay: p.UnifiedDelay,
+		LogLevel: p.LogLevel, MixedPort: p.MixedPort,
+		SocksPort: p.SocksPort, SocksOn: p.SocksOn,
+		HTTPPort: p.HTTPPort, HTTPOn: p.HTTPOn,
+		RedirPort: p.RedirPort, RedirOn: p.RedirOn, ApplyRedir: runtime.GOOS != "windows",
+		TProxyPort: p.TProxyPort, TProxyOn: p.TProxyOn, ApplyTProxy: runtime.GOOS == "linux",
+		DNSOverwrite: dns,
+	}
+}
+
+// writeRuntime installs the current subscription (or the existing config,
+// or the built-in default) and then stamps clash prefs on top. preserveMode
+// keeps the mode the user picked; a profile install lets the file's own
+// mode through.
+func (a *App) writeRuntime(preserveMode bool) error {
+	if a.dir == "" {
+		return nil
+	}
+	body := a.runtimeBase()
+	mode := ""
+	if preserveMode && a.model != nil {
+		mode = a.model.Home.Mode
+	}
+	prefs := ui.DefaultPrefs()
+	if a.model != nil {
+		prefs = a.model.Prefs
+	}
+	body = profile.ApplyClash(body, a.clashPatch(prefs))
+	if mode != "" {
+		body = profile.SetMode(body, mode)
+	}
+	if err := os.MkdirAll(a.dir, 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(a.dir, "config.yaml"), body, 0o644)
+}
+
+func (a *App) runtimeBase() []byte {
+	if body := a.currentProfileBody(); len(body) > 0 {
+		return body
+	}
+	if a.dir != "" {
+		if data, err := os.ReadFile(filepath.Join(a.dir, "config.yaml")); err == nil && len(bytes.TrimSpace(data)) > 0 {
+			return data
+		}
+	}
+	return []byte(core.DefaultConfig)
+}
+
+func (a *App) currentProfileBody() []byte {
+	if a.profiles == nil || a.model == nil || a.dir == "" {
+		return nil
+	}
+	cur := a.model.CurrentItem()
+	if cur == nil {
+		return nil
+	}
+	file, err := a.profiles.Load()
+	if err != nil {
+		return nil
+	}
+	var rel string
+	for _, it := range file.Items {
+		if it.UID == cur.UID {
+			rel = it.File
+		}
+	}
+	if rel == "" {
+		return nil
+	}
+	body, err := os.ReadFile(filepath.Join(a.dir, rel))
+	if err != nil {
+		return nil
+	}
+	return body
+}
+
+func (a *App) persistProfileDNS(on bool) error {
+	if a.model != nil {
+		a.model.Prefs.DNSOverwrite = on
+		if cur := a.model.CurrentItem(); cur != nil {
+			cur.Option.DNSOverwrite = on
+		}
+	}
+	if a.profiles == nil || a.model == nil || a.model.CurrentProfile == "" {
+		return nil
+	}
+	file, err := a.profiles.Load()
+	if err != nil {
+		return err
+	}
+	changed := false
+	for i := range file.Items {
+		if file.Items[i].UID != a.model.CurrentProfile {
+			continue
+		}
+		if file.Items[i].Option.DNSOverwrite == on {
+			return nil
+		}
+		file.Items[i].Option.DNSOverwrite = on
+		changed = true
+	}
+	if !changed {
+		return nil
+	}
+	return a.profiles.Save(file)
+}
+
+// reconcileSystemProxy applies a saved "on" to the real controller. A
+// platform that cannot do it clears the flag instead of leaving the switch
+// on.
+func (a *App) reconcileSystemProxy() {
+	if a.model == nil || !a.settings.SystemProxy {
+		return
+	}
+	if err := a.SetSystemProxy(true); err != nil {
+		a.settings.SystemProxy = false
+		a.model.Home.SystemProxy = false
+		a.model.Prefs.SystemProxy = false
+		if a.store != nil {
+			_ = a.store.Save(a.settings)
+		}
+		a.model.SetNotice("系统代理未启用：" + err.Error())
+	}
 }
 
 func (a *App) openDir(kind string) {

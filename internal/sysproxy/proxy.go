@@ -1,7 +1,8 @@
 // Package sysproxy sets the operating system proxy.
 //
-// Platform returns the macOS networksetup/scutil controller, or an
-// in-memory controller on other systems. Tests pass their own Controller.
+// Platform returns the macOS networksetup/scutil controller, the Linux
+// GNOME gsettings controller, or Unsupported on other systems. Memory is
+// the in-process fake tests pass in. It is not what a desktop build uses.
 package sysproxy
 
 import "sync"

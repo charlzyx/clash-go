@@ -17,9 +17,6 @@ func (m *Model) page(c *mygoui.Context, pal Palette, title string, actions func(
 				actions()
 			}
 		})
-		if m.Notice != "" {
-			mygoui.Text(c, m.Notice).FontSize(13).TextColor(pal.Error).Padding(6, 20)
-		}
 		if m.Home.Error != "" && m.Router.Path() == "/home" {
 			mygoui.Text(c, m.Home.Error).FontSize(13).TextColor(pal.Error).Padding(0, 20, 6, 20)
 		}
@@ -29,6 +26,22 @@ func (m *Model) page(c *mygoui.Context, pal Palette, title string, actions func(
 			}
 		})
 	})
+}
+
+// iconButton is a Verge IconButton: the face is an icon, the words live
+// in the tooltip. Label stays the test id.
+func iconButton(c *mygoui.Context, pal Palette, icon *mygoui.SVG, tip, id string) bool {
+	b := mygoui.ButtonBase(c.Key(id)).Size(32, 32).Radius(8).Label(id)
+	b.Background(mygoui.Transparent).TextColor(pal.Text).Tooltip(tip)
+	b.AlignItems(mygoui.Center).Justify(mygoui.Center)
+	b.Children(func() {
+		mygoui.Icon(c, icon).Size(20, 20)
+	})
+	return b.Clicked()
+}
+
+func hintIcon(c *mygoui.Context, pal Palette, icon *mygoui.SVG, tip string) {
+	mygoui.Icon(c, icon).Size(16, 16).TextColor(pal.TextMuted).Tooltip(tip)
 }
 
 func textButton(c *mygoui.Context, pal Palette, label, tip, id string) bool {
@@ -191,9 +204,9 @@ func clickRow(c *mygoui.Context, pal Palette, label, id string, busy bool, click
 				trail()
 			}
 			if busy {
-				mygoui.Text(c, "…").FontSize(14).TextColor(pal.Primary)
+				mygoui.Spinner(c).Size(18, 18).TextColor(pal.Primary)
 			} else {
-				mygoui.Text(c, "›").FontSize(18).TextColor(pal.TextMuted)
+				mygoui.Icon(c, iconChevron).Size(18, 18).TextColor(pal.TextMuted).Label("chevron")
 			}
 		})
 		if b.Clicked() {
