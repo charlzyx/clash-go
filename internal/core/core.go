@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/metacubex/mihomo/component/resolver"
 	"github.com/metacubex/mihomo/config"
 	C "github.com/metacubex/mihomo/constant"
 	mihomodns "github.com/metacubex/mihomo/dns"
@@ -118,6 +119,54 @@ func (c *Core) Stop() error {
 	c.stopLogFeed()
 	c.running = false
 	return nil
+}
+
+// GeneralSnapshot is the clash fields the settings page writes, read back
+// from the running kernel. DNS is true when mihomo installed a resolver,
+// which is what dns.enable does. A stopped core returns a zero snapshot.
+type GeneralSnapshot struct {
+	Running      bool
+	AllowLan     bool
+	IPv6         bool
+	UnifiedDelay bool
+	LogLevel     string
+	MixedPort    int
+	SocksPort    int
+	Port         int
+	RedirPort    int
+	TProxyPort   int
+	DNS          bool
+}
+
+// GeneralSnapshot reads the kernel. It does not parse config.yaml, so a
+// test can tell a reload from a JSON round-trip.
+func (c *Core) GeneralSnapshot() GeneralSnapshot {
+	var snap GeneralSnapshot
+	if c == nil {
+		return snap
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.running {
+		return snap
+	}
+	g := executor.GetGeneral()
+	if g == nil {
+		snap.Running = true
+		return snap
+	}
+	snap.Running = true
+	snap.AllowLan = g.AllowLan
+	snap.IPv6 = g.IPv6
+	snap.UnifiedDelay = g.UnifiedDelay
+	snap.LogLevel = g.LogLevel.String()
+	snap.MixedPort = g.MixedPort
+	snap.SocksPort = g.SocksPort
+	snap.Port = g.Port
+	snap.RedirPort = g.RedirPort
+	snap.TProxyPort = g.TProxyPort
+	snap.DNS = resolver.DefaultResolver != nil
+	return snap
 }
 
 // Status reports the kernel. Version is set even when the core is stopped.

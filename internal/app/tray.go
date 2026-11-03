@@ -300,12 +300,12 @@ func (a *App) trayActions() TrayActions {
 		SetMode: func(mode string) { _ = a.SetMode(mode) },
 		SetProxy: func(on bool) {
 			if err := a.SetSystemProxy(on); err != nil && a.model != nil {
-				a.model.Notice = err.Error()
+				a.model.SetNotice(err.Error())
 			}
 		},
 		SetTUN: func(on bool) {
 			if err := a.SetTUN(on); err != nil && a.model != nil {
-				a.model.Notice = err.Error()
+				a.model.SetNotice(err.Error())
 			}
 		},
 		SetLite: func(on bool) {

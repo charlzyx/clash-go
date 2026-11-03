@@ -15,12 +15,15 @@ type Hooks struct {
 	SetMode        func(mode string) error
 	ImportURL      func(url string) error
 	SavePrefs      func(Prefs) error
-	OpenDir        func(kind string)
-	RestartCore    func() error
-	BrowseScript   func() (string, error)
-	Copy           func(text string)
-	Quit           func()
-	TestSite       func(url string) error
+	// ActivateProfile makes uid the current subscription and reloads the
+	// kernel so that profile's DNS overwrite takes effect.
+	ActivateProfile func(uid string) error
+	OpenDir         func(kind string)
+	RestartCore     func() error
+	BrowseScript    func() (string, error)
+	Copy            func(text string)
+	Quit            func()
+	TestSite        func(url string) error
 	// CloseAllConnections closes every active connection. A non-nil
 	// error is kept off the page notice (Verge errorNotice: false).
 	CloseAllConnections func() error
@@ -102,6 +105,9 @@ type Model struct {
 	LogQuery         string
 	LogSearch        SearchOpts
 	Notice           string
+	noticeGen        uint64
+	noticeShown      string
+	noticeSentGen    uint64
 	Busy             string
 	DNSAsk           bool
 	ProfileHasDNS    bool
@@ -213,6 +219,7 @@ func (m *Model) View(c *mygoui.Context) {
 		return
 	}
 	m.normalize()
+	m.presentNotice(c)
 	m.flushFilters(c.Now())
 	m.syncRuleRefresh()
 	m.syncUnlock()
@@ -398,7 +405,7 @@ func (m *Model) setMode(mode string) {
 	if m.Hooks.SetMode != nil {
 		if err := m.Hooks.SetMode(mode); err != nil {
 			m.Home.Mode = prev
-			m.Notice = err.Error()
+			m.SetNotice(err.Error())
 		}
 	}
 }
@@ -407,7 +414,7 @@ func (m *Model) setProxy(on bool) {
 	if on && !m.Home.Running {
 		m.Home.SystemProxy = false
 		m.Prefs.SystemProxy = false
-		m.Notice = "内核尚未就绪，无法开启系统代理"
+		m.SetNotice("内核尚未就绪，无法开启系统代理")
 		return
 	}
 	prev := m.Home.SystemProxy
@@ -417,7 +424,7 @@ func (m *Model) setProxy(on bool) {
 		if err := m.Hooks.SetSystemProxy(on); err != nil {
 			m.Home.SystemProxy = prev
 			m.Prefs.SystemProxy = prev
-			m.Notice = err.Error()
+			m.SetNotice(err.Error())
 			return
 		}
 	}
@@ -425,7 +432,7 @@ func (m *Model) setProxy(on bool) {
 
 func (m *Model) setTUN(on bool) {
 	if on && !m.Home.TUNAvailable {
-		m.Notice = "TUN 模式需要服务模式，请先安装服务"
+		m.SetNotice("TUN 模式需要服务模式，请先安装服务")
 		m.Home.TUN = false
 		return
 	}
@@ -436,7 +443,7 @@ func (m *Model) setTUN(on bool) {
 		if err := m.Hooks.SetTUN(on); err != nil {
 			m.Home.TUN = prev
 			m.Prefs.TUN = prev
-			m.Notice = err.Error()
+			m.SetNotice(err.Error())
 		}
 	}
 }
@@ -444,7 +451,7 @@ func (m *Model) setTUN(on bool) {
 func (m *Model) savePrefs() {
 	if m.Hooks.SavePrefs != nil {
 		if err := m.Hooks.SavePrefs(m.Prefs); err != nil {
-			m.Notice = err.Error()
+			m.SetNotice(err.Error())
 		}
 	}
 }
@@ -453,7 +460,47 @@ func (m *Model) copy(text string) {
 	if m.Hooks.Copy != nil {
 		m.Hooks.Copy(text)
 	}
-	m.Notice = "复制成功"
+	m.SetNotice("复制成功")
+}
+
+// SetNotice records a page message and shows it as a transient toast.
+// The same text can be sent again; an empty text clears the toast.
+func (m *Model) SetNotice(text string) {
+	if m == nil {
+		return
+	}
+	m.Notice = text
+	m.noticeGen++
+}
+
+func (m *Model) presentNotice(c *mygoui.Context) {
+	if m.Notice == "" {
+		if m.noticeShown != "" || m.noticeGen != m.noticeSentGen {
+			c.CloseToast("clash-notice")
+			m.noticeShown = ""
+			m.noticeSentGen = m.noticeGen
+		}
+		return
+	}
+	if m.Notice == m.noticeShown && m.noticeGen == m.noticeSentGen {
+		return
+	}
+	m.noticeShown = m.Notice
+	m.noticeSentGen = m.noticeGen
+	c.AddToast(mygoui.Toast{
+		ID:      "clash-notice",
+		Title:   m.Notice,
+		Timeout: noticeTimeout(m.Notice),
+	})
+}
+
+func noticeTimeout(text string) time.Duration {
+	switch text {
+	case "复制成功", "Verge 版本已复制到剪贴板":
+		return time.Second
+	default:
+		return 4 * time.Second
+	}
 }
 
 // CurrentItem is the active subscription, or nil.

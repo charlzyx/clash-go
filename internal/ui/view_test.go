@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	mygoui "github.com/egoist/mygo/ui"
 )
@@ -488,7 +489,7 @@ func TestSettingsSections(t *testing.T) {
 		t.Fatal("tray click row")
 	}
 	port, pok := tt.Find("7897")
-	chev, cok := tt.Find("›")
+	chev, cok := tt.Find("chevron")
 	if !pok || !cok || port.X+port.W > chev.X {
 		t.Fatalf("chevron should sit to the right of the port value, port %v chevron %v", port, chev)
 	}
@@ -546,6 +547,54 @@ func TestSettingsSections(t *testing.T) {
 	tt = renderModel(m, WindowWidth, WindowHeight, false)
 	if !tt.HasText("启用定时备份") || !tt.HasText("24") {
 		t.Fatal("backup defaults")
+	}
+}
+
+func TestSettingsIconsAndImportNotice(t *testing.T) {
+	m := DemoModel()
+	m.Router.Replace("/settings")
+	tt := renderModel(m, WindowWidth, WindowHeight, false)
+	for _, word := range []string{"齿轮", "手册", "Telegram", "GitHub"} {
+		if tt.HasText(word) {
+			t.Fatalf("settings still uses %q as a control face\n%s", word, join(tt.Texts()))
+		}
+	}
+	if err := tt.Click("set-manual"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("set-tg"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("set-gh"); err != nil {
+		t.Fatal(err)
+	}
+	urls := tt.OpenedURLs()
+	if len(urls) != 3 || urls[0] != "https://clash-verge-rev.github.io/index.html" || urls[1] != "https://t.me/clash_verge_re" || urls[2] != "https://github.com/clash-verge-rev/clash-verge-rev" {
+		t.Fatalf("urls %v", urls)
+	}
+	if err := tt.Click("tun-gear"); err != nil {
+		t.Fatal(err)
+	}
+	if !m.Dialogs.TUN {
+		t.Fatal("tun gear did not open the dialog")
+	}
+
+	m = NewModel(demoHome())
+	m.Router.Replace("/profile")
+	tt = mygoui.NewTester(m.View, WindowWidth, WindowHeight)
+	if err := tt.Click("profile-url"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Type("https://example.com/sub")
+	if err := tt.Click("do-import"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText("订阅已成功导入，如未显示请重启应用") {
+		t.Fatalf("import notice missing\n%s", join(tt.Texts()))
+	}
+	tt.Advance(5 * time.Second)
+	if tt.HasText("订阅已成功导入") {
+		t.Fatal("import success stayed on the page")
 	}
 }
 

@@ -10,7 +10,7 @@ func (m *Model) homePage(c *mygoui.Context, pal Palette) {
 	m.page(c, pal, "首页", func() {
 		if textButton(c, pal, "轻量", "轻量模式", "home-lite") {
 			m.Prefs.Lightweight = true
-			m.Notice = "轻量模式"
+			m.SetNotice("轻量模式")
 			m.savePrefs()
 		}
 		if textButton(c, pal, "手册", "使用手册", "home-manual") {
@@ -573,14 +573,14 @@ func (m *Model) systemCard(c *mygoui.Context, pal Palette) mygoui.Element {
 				mygoui.Text(c, mode).FontSize(14).Underline()
 			})
 			if b.Clicked() {
-				m.Notice = "服务模式需要系统服务，当前仍是用户模式"
+				m.SetNotice("服务模式需要系统服务，当前仍是用户模式")
 			}
 		} else {
 			mygoui.Text(c, "运行模式 "+mode).FontSize(14)
 		}
 		check := orDash(m.Home.LastCheck)
 		if textButton(c, pal, "最后检查更新 "+check, "检查更新", "last-check") {
-			m.Notice = "当前已是最新版本"
+			m.SetNotice("当前已是最新版本")
 		}
 		ver := m.Home.VergeVersion
 		if ver == "" {

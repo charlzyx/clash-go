@@ -270,9 +270,6 @@ func (m *Model) unlockPage(c *mygoui.Context, pal Palette) {
 			mygoui.Spacer(c).Grow(1)
 			m.unlockTestAllButton(c, pal)
 		})
-		if m.Notice != "" {
-			mygoui.Text(c, m.Notice).FontSize(13).TextColor(pal.Error).Padding(6, 20)
-		}
 		if len(m.Unlock) == 0 {
 			m.unlockEmpty(c, pal)
 			return
@@ -405,7 +402,7 @@ func (m *Model) testAllUnlock() {
 	if m == nil || len(m.Unlock) == 0 || m.unlockAll || len(m.unlockLoading) > 0 {
 		return
 	}
-	m.Notice = ""
+	m.SetNotice("")
 	m.unlockAll = true
 	if m.unlockLoading == nil {
 		m.unlockLoading = map[string]bool{}
@@ -414,7 +411,7 @@ func (m *Model) testAllUnlock() {
 		m.unlockLoading[item.Name] = true
 	}
 	if m.Hooks.CheckUnlock == nil {
-		m.Notice = "检测超时或失败"
+		m.SetNotice("检测超时或失败")
 		m.finishUnlockAll(false)
 		return
 	}
@@ -423,7 +420,7 @@ func (m *Model) testAllUnlock() {
 		delete(m.unlockLoading, item.Name)
 	})
 	if err != nil {
-		m.Notice = "检测超时或失败"
+		m.SetNotice("检测超时或失败")
 		m.finishUnlockAll(false)
 		return
 	}
@@ -451,9 +448,9 @@ func (m *Model) testOneUnlock(name string) {
 		m.unlockLoading = map[string]bool{}
 	}
 	m.unlockLoading[name] = true
-	m.Notice = ""
+	m.SetNotice("")
 	if m.Hooks.CheckUnlock == nil {
-		m.Notice = name + " 检测失败"
+		m.SetNotice(name + " 检测失败")
 		delete(m.unlockLoading, name)
 		return
 	}
@@ -461,7 +458,7 @@ func (m *Model) testOneUnlock(name string) {
 		m.replaceUnlock(item)
 	})
 	if err != nil {
-		m.Notice = name + " 检测失败"
+		m.SetNotice(name + " 检测失败")
 		delete(m.unlockLoading, name)
 		return
 	}

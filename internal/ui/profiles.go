@@ -17,13 +17,13 @@ func (m *Model) profilePage(c *mygoui.Context, pal Palette) {
 			m.Batch = true
 		}
 		if textButton(c, pal, "更新", "更新所有订阅", "update-all") {
-			m.Notice = "订阅已更新"
+			m.SetNotice("订阅已更新")
 		}
 		if textButton(c, pal, "配置", "查看运行时订阅", "runtime") {
 			m.Dialogs.Runtime = true
 		}
 		if textButton(c, pal, "激活", "重新激活订阅", "reactivate") {
-			m.Notice = "订阅已激活"
+			m.SetNotice("订阅已激活")
 		}
 	}, func() {
 		zone := mygoui.Column(c).FillWidth().Padding(10).Gap(12)
@@ -76,16 +76,16 @@ func (m *Model) importRow(c *mygoui.Context, pal Palette) {
 func (m *Model) importProfile(c *mygoui.Context) {
 	raw := strings.TrimSpace(m.ProfileURL)
 	if !ValidSubscriptionURL(raw) {
-		m.Notice = "无效的订阅链接，请输入以 http:// 或 https:// 开头的地址"
+		m.SetNotice("无效的订阅链接，请输入以 http:// 或 https:// 开头的地址")
 		return
 	}
 	if m.Hooks.ImportURL != nil {
 		if err := m.Hooks.ImportURL(raw); err != nil {
-			m.Notice = err.Error()
+			m.SetNotice(err.Error())
 			return
 		}
 		m.ProfileURL = ""
-		m.Notice = "订阅已成功导入，如未显示请重启应用"
+		m.SetNotice("订阅已成功导入，如未显示请重启应用")
 		return
 	}
 	m.addProfile(ProfileItem{
@@ -97,7 +97,7 @@ func (m *Model) importProfile(c *mygoui.Context) {
 		Option:  ProfileOption{UpdateInterval: 1440, AllowAutoUpdate: true, TimeoutSeconds: 60},
 	})
 	m.ProfileURL = ""
-	m.Notice = "订阅已成功导入，如未显示请重启应用"
+	m.SetNotice("订阅已成功导入，如未显示请重启应用")
 	_ = c
 }
 
@@ -123,7 +123,7 @@ func (m *Model) dropProfiles(files []string) {
 	for _, f := range files {
 		low := strings.ToLower(f)
 		if !strings.HasSuffix(low, ".yaml") && !strings.HasSuffix(low, ".yml") {
-			m.Notice = "仅支持 YAML 文件"
+			m.SetNotice("仅支持 YAML 文件")
 			continue
 		}
 		name := f
@@ -178,7 +178,7 @@ func (m *Model) deleteChecked() {
 		}
 	}
 	m.Profiles = keep
-	m.Notice = "选中的订阅已成功删除"
+	m.SetNotice("选中的订阅已成功删除")
 	m.Batch = false
 }
 
@@ -237,27 +237,39 @@ func (m *Model) profileItem(c *mygoui.Context, pal Palette, i int) {
 		})
 	})
 	if card.Clicked() && !m.Batch {
-		m.CurrentProfile = p.UID
-		m.Home.Profile = homeFrom(*p)
-		m.Notice = "订阅已切换"
+		m.selectProfile(p)
 	}
+}
+
+func (m *Model) selectProfile(p *ProfileItem) {
+	if p == nil {
+		return
+	}
+	m.CurrentProfile = p.UID
+	m.Home.Profile = homeFrom(*p)
+	m.Prefs.DNSOverwrite = p.Option.DNSOverwrite
+	if m.Hooks.ActivateProfile != nil {
+		if err := m.Hooks.ActivateProfile(p.UID); err != nil {
+			m.SetNotice(err.Error())
+			return
+		}
+	}
+	m.SetNotice("订阅已切换")
 }
 
 func (m *Model) profileMenu(menu *mygoui.Menu, p *ProfileItem) {
 	remote := p.URL != ""
 	if remote && p.Home != "" {
 		if menu.Item("首 页").Chosen() {
-			m.Notice = p.Home
+			m.SetNotice(p.Home)
 		}
 	}
 	if menu.Item("使用").Chosen() {
-		m.CurrentProfile = p.UID
-		m.Home.Profile = homeFrom(*p)
-		m.Notice = "订阅已切换"
+		m.selectProfile(p)
 	}
 	if remote {
 		if menu.Item("分享二维码").Chosen() {
-			m.Notice = "订阅二维码"
+			m.SetNotice("订阅二维码")
 		}
 	}
 	if menu.Item("编辑信息").Chosen() {
@@ -305,7 +317,7 @@ func (m *Model) profileMenu(menu *mygoui.Menu, p *ProfileItem) {
 		}
 		if menu.Item("更新（代理）").Chosen() {
 			p.Updated = time.Now()
-			m.Notice = "使用代理更新"
+			m.SetNotice("使用代理更新")
 		}
 	}
 	if menu.Item("删除").Chosen() {
