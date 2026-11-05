@@ -21,20 +21,20 @@ func TestUnlockPageGrid(t *testing.T) {
 		}
 		return "Yes", "US", 40, nil
 	}
-	tt := renderModel(m, WindowWidth, WindowHeight, false)
+	tt := renderModel(m, WindowWidth, 1400, false)
 	if !tt.HasText("解锁测试") || !tt.HasText("测试全部") || !tt.HasText("哔哩哔哩大陆") || !tt.HasText("TikTok") {
 		t.Fatalf("unlock texts %q", tt.Texts())
 	}
 	if len(m.Unlocks) != 13 {
 		t.Fatalf("cards %d", len(m.Unlocks))
 	}
-	if err := tt.Click("unlock-Netflix"); err != nil {
+	if err := tt.Click("unlock-test-Netflix"); err != nil {
 		t.Fatal(err)
 	}
 	if m.Notice != "检测超时或失败" || m.Unlocks[8].Status == "Pending" || m.Unlocks[8].Delay == -2 {
 		t.Fatalf("netflix %+v notice %q", m.Unlocks[8], m.Notice)
 	}
-	if err := tt.Click("unlock-Disney+"); err != nil {
+	if err := tt.Click("unlock-test-Disney+"); err != nil {
 		t.Fatal(err)
 	}
 	if m.Notice != "Disney+ 检测失败" {

@@ -30,7 +30,7 @@ func (m *Model) logsPage(c *mygoui.Context, pal Palette) {
 			pauseTip = "继续"
 			mark = iconPlay
 		}
-		if iconButton(c, pal, mark, pauseTip, "log-pause") {
+		if iconButtonBox(c, pal, mark, pauseTip, "log-pause", "log-pause-icon", iconButtonSmall, iconGlyphSmall, iconButtonSmall/2) {
 			m.Logs.Paused = !m.Logs.Paused
 			if m.Hooks.SetLogPaused != nil {
 				m.Hooks.SetLogPaused(m.Logs.Paused)

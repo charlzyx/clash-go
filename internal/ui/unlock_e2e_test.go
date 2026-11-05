@@ -77,7 +77,7 @@ func TestUnlockPageFlow(t *testing.T) {
 
 	m.Unlocks = DefaultUnlocks()
 	tt = renderModel(m, WindowWidth, 1400, false)
-	if err := tt.Click("unlock-" + names[0]); err != nil {
+	if err := tt.Click("unlock-test-" + names[0]); err != nil {
 		t.Fatal(err)
 	}
 	if m.Unlocks[0].Status != "Yes" || m.Unlocks[0].Region != "US" || m.Unlocks[0].Delay != 40 {
