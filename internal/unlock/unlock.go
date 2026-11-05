@@ -18,7 +18,7 @@ import (
 func Names() []string {
 	return []string{
 		"哔哩哔哩大陆",
-		"港澳台",
+		"哔哩哔哩港澳台",
 		"ChatGPT Web",
 		"Claude",
 		"Gemini",
@@ -48,7 +48,7 @@ type endpoint struct {
 // with JSON {"status","region"} and that wins over the status code.
 var endpoints = map[string]endpoint{
 	"哔哩哔哩大陆":          {url: "https://api.bilibili.com/pgc/player/web/playurl"},
-	"港澳台":             {url: "https://api.bilibili.com/pgc/player/web/playurl?platform=html5"},
+	"哔哩哔哩港澳台":         {url: "https://api.bilibili.com/pgc/player/web/playurl?platform=html5"},
 	"ChatGPT Web":     {url: "https://chatgpt.com/"},
 	"Claude":          {url: "https://claude.ai/"},
 	"Gemini":          {url: "https://gemini.google.com/"},

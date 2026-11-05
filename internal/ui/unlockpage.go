@@ -3,6 +3,7 @@ package ui
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/charlzyx/clash-go/internal/sitetest"
 	"github.com/charlzyx/clash-go/internal/unlock"
@@ -35,11 +36,7 @@ func (m *Model) unlockPage(c *mygoui.Context, pal Palette) {
 	}
 	busy := m.unlockBusy()
 	m.page(c, pal, "解锁测试", func() {
-		label := "测试全部"
-		if busy {
-			label = "测试中..."
-		}
-		if filledButton(c, pal, label, "unlock-all", !busy && len(m.Unlocks) > 0) && !busy {
+		if m.unlockAllButton(c, pal, busy) && !busy {
 			m.unlockAll()
 		}
 	}, func() {
@@ -64,25 +61,128 @@ func (m *Model) unlockBusy() bool {
 	return false
 }
 
+// unlockAllButton is the contained 「测试全部」 control. Idle shows
+// RefreshRounded. While any card is running it shows a 16px spinner and
+// 「测试中...」, and it does not accept a click.
+func (m *Model) unlockAllButton(c *mygoui.Context, pal Palette, busy bool) bool {
+	label := "测试全部"
+	if busy {
+		label = "测试中..."
+	}
+	filled := len(m.Unlocks) > 0
+	b := mygoui.ButtonBase(c.Key("unlock-all")).Height(30).Padding(0, 10).Radius(6).Gap(6).Label("unlock-all")
+	b.Disabled(busy || !filled)
+	fg := pal.Text
+	if filled {
+		b.Background(pal.Primary).TextColor(pal.OnPrimary)
+		fg = pal.OnPrimary
+		if busy {
+			b.Opacity(0.7)
+		}
+	} else {
+		b.Background(mygoui.Transparent).TextColor(pal.Text).Border(1, pal.Primary)
+	}
+	b.Children(func() {
+		if busy {
+			mygoui.Spinner(c).Size(16, 16).TextColor(fg).Shrink(0).Label("unlock-all-spinner")
+		} else {
+			mygoui.Icon(c, iconRefresh).Size(18, 18).TextColor(fg).Shrink(0).Label("unlock-all-icon")
+		}
+		mygoui.Text(c, label).FontSize(13).TextColor(fg).Shrink(0)
+	})
+	return b.Clicked()
+}
+
 func (m *Model) unlockCard(c *mygoui.Context, pal Palette, i int) {
 	it := m.Unlocks[i]
-	b := mygoui.ButtonBase(c.Key("unlock-" + it.Name)).MinHeight(96).Radius(8).Padding(8).Label("unlock-" + it.Name)
-	b.Background(pal.Card).BorderWidth(0, 0, 0, 4).BorderColor(unlockTone(pal, it))
-	b.Children(func() {
-		mygoui.Column(c).FillWidth().Gap(4).Children(func() {
-			mygoui.Text(c, it.Name).FontSize(14).Bold().SingleLine()
-			chip(c, pal, unlockChip(it), unlockToneName(it), false)
-			region := "--"
-			if it.Region != "" {
-				region = flagEmoji(it.Region) + " " + it.Region
-			}
-			mygoui.Text(c, region).FontSize(12).TextColor(pal.TextMuted)
-			mygoui.Text(c, unlockTime(it)).FontSize(12).TextColor(pal.TextMuted)
+	col := mygoui.Column(c.Key("unlock-" + it.Name)).MinHeight(100).Radius(8).FillWidth().Background(pal.Card).Label("unlock-" + it.Name)
+	col.BorderWidth(0, 0, 0, 4).BorderColor(unlockTone(pal, it))
+	col.Children(func() {
+		mygoui.Column(c).Padding(10, 10, 6, 10).Gap(8).Grow(1).FillWidth().Children(func() {
+			mygoui.Row(c).FillWidth().AlignItems(mygoui.Center).Children(func() {
+				mygoui.Text(c, it.Name).FontSize(16).FontWeight(600).SingleLine().Grow(1)
+				m.unlockRefresh(c, pal, i)
+			})
+			mygoui.Row(c).Gap(8).AlignItems(mygoui.Center).Children(func() {
+				m.unlockStatusChip(c, pal, it)
+				if it.Region != "" {
+					unlockRegionChip(c, pal, it.Region)
+				}
+			})
 		})
+		line := mygoui.RGBA(0, 0, 0, 0.2)
+		if pal.Dark {
+			line = mygoui.RGBA(255, 255, 255, 0.2)
+		}
+		mygoui.Box(c).Height(1).FillWidth().Margin(0, 8).Shrink(0).BorderWidth(0, 0, 1, 0).BorderStyle(mygoui.BorderDashed).BorderColor(line)
+		mygoui.Row(c).FillWidth().Padding(2, 12).Justify(mygoui.End).Shrink(0).Children(func() {
+			mygoui.Text(c, unlockTime(it)).FontSize(11).TextColor(pal.TextMuted).SingleLine().Shrink(0)
+		})
+	})
+}
+
+func (m *Model) unlockRefresh(c *mygoui.Context, pal Palette, i int) {
+	it := m.Unlocks[i]
+	id := "unlock-test-" + it.Name
+	spinning := it.Delay == -2
+	b := mygoui.ButtonBase(c.Key(id)).Size(32, 32).Radius(16).Shrink(0).Label(id).Tooltip("测试")
+	b.Background(mygoui.Transparent).TextColor(pal.Primary).Border(1, pal.Primary)
+	if spinning {
+		b.Disabled(true).Opacity(0.55)
+	}
+	b.Children(func() {
+		icon := mygoui.Icon(c, iconRefresh).Size(18, 18).TextColor(pal.Primary).Shrink(0)
+		if spinning {
+			icon.Rotate(icon.Loop("unlock-spin", time.Second, mygoui.Linear) * 360)
+		}
 	})
 	if b.Clicked() {
 		m.unlockOne(i)
 	}
+}
+
+func (m *Model) unlockStatusChip(c *mygoui.Context, pal Palette, it UnlockItem) {
+	tone := unlockToneName(it)
+	fg := pal.Text
+	bg := pal.Text.Alpha(0.08)
+	weight := 700
+	if tone == ToneMuted || it.Delay == -2 {
+		weight = 400
+	} else {
+		fg = pal.Color(tone)
+		bg = fg.Alpha(0.12)
+	}
+	mygoui.Row(c.Key("unlock-chip-"+it.Name)).Padding(2, 8).Radius(12).Gap(4).Shrink(0).Background(bg).AlignItems(mygoui.Center).Label("unlock-chip-" + it.Name).Children(func() {
+		mygoui.Icon(c, unlockStatusIcon(it)).Size(16, 16).TextColor(fg).Shrink(0).Label("unlock-status-" + it.Name)
+		mygoui.Text(c, unlockChip(it)).FontSize(12).FontWeight(weight).TextColor(fg).SingleLine()
+	})
+}
+
+func unlockStatusIcon(it UnlockItem) *mygoui.SVG {
+	if it.Delay == -2 || it.Status == "" || it.Status == "Pending" {
+		return iconPending
+	}
+	switch it.Status {
+	case "Yes":
+		return iconCheck
+	case "No":
+		return iconCancel
+	case "Soon":
+		return iconTime
+	default:
+		return iconStatusHelp
+	}
+}
+
+func unlockRegionChip(c *mygoui.Context, pal Palette, region string) {
+	label := flagEmoji(region)
+	if label != "" {
+		label += " "
+	}
+	label += region
+	mygoui.Row(c).Padding(1, 6).Radius(10).Shrink(0).AlignItems(mygoui.Center).Border(1, pal.Info).Children(func() {
+		mygoui.Text(c, label).FontSize(12).TextColor(pal.Info).SingleLine()
+	})
 }
 
 func (m *Model) unlockOne(i int) {

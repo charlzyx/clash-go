@@ -58,11 +58,17 @@ func (m *Model) connectionsPage(c *mygoui.Context, pal Palette) {
 	m.page(c, pal, "连接", func() {
 		mygoui.Text(c, "下载量: "+conn.HeaderTraffic(m.Conns.Down)).FontSize(13).Shrink(0)
 		mygoui.Text(c, "上传量: "+conn.HeaderTraffic(m.Conns.Up)).FontSize(13).Shrink(0)
-		layout := "列表视图"
+		// Table shows the control that switches to the list, and the list
+		// shows the control that switches back to the table.
+		mark := iconTableRows
+		tip := "列表视图"
+		iconID := "conn-layout-rows"
 		if m.Conns.Layout == "list" {
-			layout = "表格视图"
+			mark = iconTableChart
+			tip = "表格视图"
+			iconID = "conn-layout-chart"
 		}
-		if textButton(c, pal, layout, layout, "conn-layout") {
+		if iconButtonBox(c, pal, mark, tip, "conn-layout", iconID, iconButtonSmall, iconGlyphSmall, iconButtonSmall/2) {
 			if m.Conns.Layout == "list" {
 				m.Conns.Layout = "table"
 			} else {

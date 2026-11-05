@@ -96,6 +96,18 @@ func filledButton(c *mygoui.Context, pal Palette, label, id string, on bool) boo
 	return b.Clicked()
 }
 
+// outlinedIconButton is a small outlined button with a start icon, the
+// shape of Verge's rule-provider trigger.
+func outlinedIconButton(c *mygoui.Context, pal Palette, svg *mygoui.SVG, label, id string) bool {
+	b := mygoui.ButtonBase(c.Key(id)).Height(30).Padding(0, 10).Radius(6).Gap(6).Label(id)
+	b.Background(mygoui.Transparent).TextColor(pal.Primary).Border(1, pal.Primary)
+	b.Children(func() {
+		mygoui.Icon(c, svg).Size(18, 18).TextColor(pal.Primary).Shrink(0).Label(id + "-icon")
+		mygoui.Text(c, label).FontSize(13).TextColor(pal.Primary).Shrink(0)
+	})
+	return b.Clicked()
+}
+
 func card(c *mygoui.Context, pal Palette, title, mark string, tone Tone, action func(), body func()) mygoui.Element {
 	col := mygoui.Column(c).FillWidth().Radius(8).Background(pal.Card)
 	col.Children(func() {
